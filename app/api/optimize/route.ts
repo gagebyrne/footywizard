@@ -3,6 +3,7 @@ import type { Player, Team, Fixture, Event } from '@/lib/types/fpl';
 import { calculateExpectedPoints } from '@/lib/optimizer/expected-points';
 import { optimizeAllFormations } from '@/lib/optimizer/ilp-solver';
 import { VALID_FORMATIONS } from '@/lib/optimizer/formation-validator';
+import { savePrediction } from '@/lib/history/predictions';
 
 /**
  * Optimize endpoint
