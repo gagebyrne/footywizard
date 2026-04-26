@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "fpl-fetch": "^2.9.0",
+    "javascript-lp-solver": "^1.0.3",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
