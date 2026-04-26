@@ -1,0 +1,239 @@
+[
+  {
+    "gameweek": 20,
+    "timestamp": "2024-01-15T10:00:00Z",
+    "predictions": [
+      {
+        "playerId": 1,
+        "playerName": "Haaland",
+        "expectedPoints": 7.5,
+        "actualPoints": 12
+      },
+      {
+        "playerId": 2,
+        "playerName": "Salah",
+        "expectedPoints": 6.2,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 3,
+        "playerName": "Saka",
+        "expectedPoints": 5.8,
+        "actualPoints": 4
+      },
+      {
+        "playerId": 4,
+        "playerName": "Palmer",
+        "expectedPoints": 5.5,
+        "actualPoints": 8
+      },
+      {
+        "playerId": 5,
+        "playerName": "Watkins",
+        "expectedPoints": 5.2,
+        "actualPoints": 2
+      },
+      {
+        "playerId": 6,
+        "playerName": "TAA",
+        "expectedPoints": 4.8,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 7,
+        "playerName": "Gabriel",
+        "expectedPoints": 4.5,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 8,
+        "playerName": "Trippier",
+        "expectedPoints": 4.2,
+        "actualPoints": 2
+      },
+      {
+        "playerId": 9,
+        "playerName": "Bowen",
+        "expectedPoints": 4,
+        "actualPoints": 5
+      },
+      {
+        "playerId": 10,
+        "playerName": "Isak",
+        "expectedPoints": 3.8,
+        "actualPoints": 1
+      },
+      {
+        "playerId": 11,
+        "playerName": "Ramsdale",
+        "expectedPoints": 3.5,
+        "actualPoints": 4
+      }
+    ],
+    "totalExpectedPoints": 55,
+    "totalActualPoints": 56,
+    "formation": "3-4-3",
+    "captain": {
+      "playerId": 1,
+      "playerName": "Haaland"
+    }
+  },
+  {
+    "gameweek": 19,
+    "timestamp": "2024-01-08T10:00:00Z",
+    "predictions": [
+      {
+        "playerId": 1,
+        "playerName": "Haaland",
+        "expectedPoints": 8,
+        "actualPoints": 2
+      },
+      {
+        "playerId": 2,
+        "playerName": "Salah",
+        "expectedPoints": 6.5,
+        "actualPoints": 13
+      },
+      {
+        "playerId": 3,
+        "playerName": "Saka",
+        "expectedPoints": 6,
+        "actualPoints": 7
+      },
+      {
+        "playerId": 4,
+        "playerName": "Palmer",
+        "expectedPoints": 5.8,
+        "actualPoints": 2
+      },
+      {
+        "playerId": 5,
+        "playerName": "Watkins",
+        "expectedPoints": 5.5,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 6,
+        "playerName": "TAA",
+        "expectedPoints": 5,
+        "actualPoints": 8
+      },
+      {
+        "playerId": 7,
+        "playerName": "Gabriel",
+        "expectedPoints": 4.8,
+        "actualPoints": 2
+      },
+      {
+        "playerId": 8,
+        "playerName": "Trippier",
+        "expectedPoints": 4.5,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 9,
+        "playerName": "Bowen",
+        "expectedPoints": 4.2,
+        "actualPoints": 1
+      },
+      {
+        "playerId": 10,
+        "playerName": "Isak",
+        "expectedPoints": 4,
+        "actualPoints": 8
+      },
+      {
+        "playerId": 11,
+        "playerName": "Ramsdale",
+        "expectedPoints": 3.8,
+        "actualPoints": 2
+      }
+    ],
+    "totalExpectedPoints": 58.1,
+    "totalActualPoints": 57,
+    "formation": "3-5-2",
+    "captain": {
+      "playerId": 1,
+      "playerName": "Haaland"
+    }
+  },
+  {
+    "gameweek": 21,
+    "timestamp": "2024-01-22T10:00:00Z",
+    "predictions": [
+      {
+        "playerId": 1,
+        "playerName": "Haaland",
+        "expectedPoints": 7.8,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 2,
+        "playerName": "Salah",
+        "expectedPoints": 6.8,
+        "actualPoints": 0
+      },
+      {
+        "playerId": 3,
+        "playerName": "Saka",
+        "expectedPoints": 6.2,
+        "actualPoints": 0
+      },
+      {
+        "playerId": 4,
+        "playerName": "Palmer",
+        "expectedPoints": 5.9,
+        "actualPoints": 0
+      },
+      {
+        "playerId": 5,
+        "playerName": "Watkins",
+        "expectedPoints": 5.6,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 6,
+        "playerName": "TAA",
+        "expectedPoints": 5.2,
+        "actualPoints": 7
+      },
+      {
+        "playerId": 7,
+        "playerName": "Gabriel",
+        "expectedPoints": 4.9,
+        "actualPoints": 0
+      },
+      {
+        "playerId": 8,
+        "playerName": "Trippier",
+        "expectedPoints": 4.6,
+        "actualPoints": 6
+      },
+      {
+        "playerId": 9,
+        "playerName": "Bowen",
+        "expectedPoints": 4.3,
+        "actualPoints": 0
+      },
+      {
+        "playerId": 10,
+        "playerName": "Isak",
+        "expectedPoints": 4.1,
+        "actualPoints": 1
+      },
+      {
+        "playerId": 11,
+        "playerName": "Ramsdale",
+        "expectedPoints": 3.9,
+        "actualPoints": 0
+      }
+    ],
+    "totalExpectedPoints": 59.3,
+    "formation": "4-4-2",
+    "captain": {
+      "playerId": 2,
+      "playerName": "Salah"
+    },
+    "totalActualPoints": 26
+  }
+]

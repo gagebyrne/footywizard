@@ -48,6 +48,7 @@ export interface PredictionRecord {
   predictions: PlayerPrediction[];
   totalExpectedPoints: number;
   totalActualPoints?: number;
+  formation?: string;
   captain: {
     playerId: number;
     playerName: string;
@@ -100,12 +101,14 @@ async function writePredictions(predictions: PredictionRecord[]): Promise<void> 
  * @param lineup - Optimized lineup
  * @param captain - Captain player
  * @param expectedPoints - Total expected points for the lineup
+ * @param formation - Formation string (e.g. "3-4-3"), optional
  */
 export async function savePrediction(
   gameweek: number,
   lineup: Player[],
   captain: Player,
-  expectedPoints: number
+  expectedPoints: number,
+  formation?: string
 ): Promise<void> {
   const startTime = Date.now();
   
@@ -122,6 +125,7 @@ export async function savePrediction(
         expectedPoints: player.ep_next ? parseFloat(player.ep_next) : 0,
       })),
       totalExpectedPoints: expectedPoints,
+      ...(formation && { formation }),
       captain: {
         playerId: captain.id,
         playerName: captain.web_name,

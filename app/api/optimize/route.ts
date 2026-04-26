@@ -191,7 +191,8 @@ export async function POST() {
       currentEvent.id,
       result.players,
       result.captain,
-      result.totalExpectedPoints
+      result.totalExpectedPoints,
+      formationName
     ).catch((error) => {
       console.error('[API /api/optimize] Failed to save prediction', {
         gameweek: currentEvent.id,
