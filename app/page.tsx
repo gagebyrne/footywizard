@@ -63,7 +63,12 @@ async function fetchTeams(): Promise<Team[]> {
 }
 
 export default async function Home() {
-  const data = await fetchOptimization();
+  // Fetch all data in parallel (async-parallel pattern from react-best-practices)
+  const [data, fixtures, teams] = await Promise.all([
+    fetchOptimization(),
+    fetchFixtures(),
+    fetchTeams(),
+  ]);
 
   if (!data) {
     return (
@@ -98,6 +103,8 @@ export default async function Home() {
           lineup={data.lineup}
           captain={data.captain}
           formation={data.formation}
+          fixtures={fixtures}
+          teams={teams}
         />
       </div>
     </div>
