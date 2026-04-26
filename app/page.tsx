@@ -1,4 +1,5 @@
 import type { OptimizeResponse } from '@/lib/types/optimizer';
+import type { Fixture, Team } from '@/lib/types/fpl';
 import { FormationPitch } from '@/components/formation-pitch';
 
 async function fetchOptimization(): Promise<OptimizeResponse | null> {
@@ -17,6 +18,47 @@ async function fetchOptimization(): Promise<OptimizeResponse | null> {
   } catch (error) {
     console.error('[page.tsx] Failed to fetch optimization:', error);
     return null;
+  }
+}
+
+async function fetchFixtures(): Promise<Fixture[]> {
+  try {
+    const res = await fetch('http://localhost:3000/api/fpl/fixtures', {
+      cache: 'force-cache',
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) {
+      console.error('[page.tsx] Fixtures API failed:', res.status);
+      return [];
+    }
+
+    const fixtures = await res.json();
+    console.log(`[page.tsx] Loaded ${fixtures.length} fixtures for tooltip context`);
+    return fixtures;
+  } catch (error) {
+    console.error('[page.tsx] Failed to fetch fixtures:', error);
+    return [];
+  }
+}
+
+async function fetchTeams(): Promise<Team[]> {
+  try {
+    const res = await fetch('http://localhost:3000/api/fpl/bootstrap-static', {
+      cache: 'force-cache',
+      next: { revalidate: 1800 },
+    });
+
+    if (!res.ok) {
+      console.error('[page.tsx] Bootstrap-static API failed:', res.status);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.teams || [];
+  } catch (error) {
+    console.error('[page.tsx] Failed to fetch teams:', error);
+    return [];
   }
 }
 

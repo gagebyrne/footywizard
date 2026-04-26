@@ -1,6 +1,6 @@
 'use client';
 
-import type { Player } from '@/lib/types/fpl';
+import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { PlayerCard } from './player-card';
 
 interface FormationPitchProps {
@@ -8,6 +8,8 @@ interface FormationPitchProps {
   captain: Player;
   formation: string;
   expectedPoints?: Map<number, number>;
+  fixtures: Fixture[];
+  teams: Team[];
 }
 
 // Formation structure definitions
@@ -21,7 +23,14 @@ const FORMATIONS: Record<string, { def: number; mid: number; fwd: number }> = {
   '5-4-1': { def: 5, mid: 4, fwd: 1 },
 };
 
-export function FormationPitch({ lineup, captain, formation, expectedPoints }: FormationPitchProps) {
+export function FormationPitch({
+  lineup,
+  captain,
+  formation,
+  expectedPoints,
+  fixtures,
+  teams,
+}: FormationPitchProps) {
   // Group players by position
   const gk = lineup.filter((p) => p.element_type === 1)[0];
   const defenders = lineup.filter((p) => p.element_type === 2);
@@ -52,6 +61,8 @@ export function FormationPitch({ lineup, captain, formation, expectedPoints }: F
               player={player}
               isCaptain={player.id === captain.id}
               expectedPoints={expectedPoints?.get(player.id) ?? calculatedExpectedPoints}
+              fixtures={fixtures}
+              teams={teams}
             />
           );
         })}
@@ -98,6 +109,8 @@ export function FormationPitch({ lineup, captain, formation, expectedPoints }: F
                   expectedPoints?.get(gk.id) ?? 
                   (parseFloat(gk.form || '0') * 0.6 + parseFloat(gk.points_per_game || '0') * 0.4)
                 }
+                fixtures={fixtures}
+                teams={teams}
               />
             )}
           </div>
