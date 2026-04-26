@@ -1,65 +1,63 @@
-import Image from "next/image";
+import type { OptimizeResponse } from '@/lib/types/optimizer';
+import { FormationPitch } from '@/components/formation-pitch';
 
-export default function Home() {
+async function fetchOptimization(): Promise<OptimizeResponse | null> {
+  try {
+    const res = await fetch('http://localhost:3000/api/optimize', {
+      method: 'POST',
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      console.error('[page.tsx] Optimization API failed:', res.status);
+      return null;
+    }
+
+    return res.json();
+  } catch (error) {
+    console.error('[page.tsx] Failed to fetch optimization:', error);
+    return null;
+  }
+}
+
+export default async function Home() {
+  const data = await fetchOptimization();
+
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900">
+        <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+          <h1 className="text-2xl font-bold text-red-400">Failed to load lineup</h1>
+          <p className="text-slate-300">Check that the API server is running.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Stats */}
+        <div className="text-center space-y-2">
+          <h1 className="text-5xl font-black tracking-tight text-white drop-shadow-2xl">
+            {data.expectedPoints.toFixed(1)}
+            <span className="text-2xl ml-2 font-medium text-emerald-300">pts</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg font-medium text-slate-300">
+            Expected Points • {data.formation}
+          </p>
+          <p className="text-sm text-slate-400">
+            £{(data.constraints.budget.used / 10).toFixed(1)}m / £{data.constraints.budget.limit / 10}m
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {/* Formation Pitch */}
+        <FormationPitch
+          lineup={data.lineup}
+          captain={data.captain}
+          formation={data.formation}
+        />
+      </div>
     </div>
   );
 }
