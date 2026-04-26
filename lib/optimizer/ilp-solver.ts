@@ -4,10 +4,11 @@
  * Uses Integer Linear Programming to find optimal 11-player lineup
  * respecting FPL constraints: budget, formation, team limits.
  * 
- * Single-formation solver (4-4-2) for M001/S02.
+ * Multi-formation solver that tries all 7 valid FPL formations.
  */
 
 import type { Player } from '../types/fpl';
+import { VALID_FORMATIONS, validateLineup } from './formation-validator';
 // @ts-ignore - javascript-lp-solver has no types
 import solver from 'javascript-lp-solver';
 
@@ -180,4 +181,95 @@ export function solveLineup(
     totalExpectedPoints,
     solveTimeMs,
   };
+}
+
+/**
+ * Optimize across all valid FPL formations
+ * 
+ * Tries all 7 valid formations and returns the one with highest total expected points.
+ * Runs defensive validation on the winning lineup to catch solver bugs.
+ * 
+ * @param players - All available players
+ * @param expectedPoints - Map of player ID to expected points
+ * @returns Best optimization result across all formations, or null if all infeasible
+ * @throws Error if validation fails (indicates solver bug)
+ */
+export function optimizeAllFormations(
+  players: Player[],
+  expectedPoints: Map<number, number>
+): OptimizationResult | null {
+  const startTime = Date.now();
+  let bestResult: OptimizationResult | null = null;
+  let bestFormationName = '';
+  
+  const formationNames = Object.keys(VALID_FORMATIONS);
+  console.log(`[Multi-Formation] Trying ${formationNames.length} formations...`);
+
+  for (const formationName of formationNames) {
+    const formation = VALID_FORMATIONS[formationName];
+    const formationStartTime = Date.now();
+    
+    const result = solveLineup(players, formation, expectedPoints);
+    const formationSolveTime = Date.now() - formationStartTime;
+    
+    if (result === null) {
+      console.log(`[Multi-Formation] ${formationName}: infeasible (${formationSolveTime}ms)`);
+      continue;
+    }
+
+    console.log(`[Multi-Formation] ${formationName}: ${result.totalExpectedPoints.toFixed(2)} pts (${formationSolveTime}ms)`);
+
+    if (bestResult === null || result.totalExpectedPoints > bestResult.totalExpectedPoints) {
+      bestResult = result;
+      bestFormationName = formationName;
+    }
+  }
+
+  const totalTime = Date.now() - startTime;
+
+  if (bestResult === null) {
+    console.warn('[Multi-Formation] All formations infeasible', {
+      totalTime,
+      playerCount: players.length,
+      formationsAttempted: formationNames.length,
+    });
+    return null;
+  }
+
+  // Defensive validation: catch solver bugs
+  const formation = VALID_FORMATIONS[bestFormationName];
+  const validation = validateLineup(bestResult.players, formation);
+
+  if (!validation.valid) {
+    // Validation failure indicates solver bug — log ILP model for debugging
+    const modelDebug = {
+      formation: bestFormationName,
+      lineup: bestResult.players.map(p => ({
+        id: p.id,
+        name: p.web_name,
+        team: p.team,
+        position: p.element_type,
+        cost: p.now_cost,
+        expectedPoints: expectedPoints.get(p.id),
+      })),
+      totalCost: bestResult.totalCost,
+      totalExpectedPoints: bestResult.totalExpectedPoints,
+      violations: validation.violations,
+    };
+
+    console.error('[Multi-Formation] Validation failed (solver bug)', modelDebug);
+    throw new Error(
+      `Lineup validation failed: ${validation.violations.join(', ')}. ILP model: ${JSON.stringify(modelDebug)}`
+    );
+  }
+
+  console.log('[Multi-Formation] Best formation selected', {
+    formation: bestFormationName,
+    totalExpectedPoints: bestResult.totalExpectedPoints.toFixed(2),
+    totalCost: bestResult.totalCost,
+    captainName: bestResult.captain.web_name,
+    totalTime,
+  });
+
+  return bestResult;
 }
