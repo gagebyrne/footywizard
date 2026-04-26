@@ -98,7 +98,7 @@ export function TransferTargets({
         </p>
       </div>
 
-      <div className="rounded-xl overflow-hidden border border-white/5">
+      <div className="rounded-xl overflow-x-auto border border-white/5">
         <Table>
           <TableHeader>
             <TableRow className="border-b border-white/10 bg-white/5 hover:bg-white/5">
