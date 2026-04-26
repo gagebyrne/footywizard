@@ -186,6 +186,19 @@ export async function POST() {
       totalTimeMs,
     });
 
+    // Save prediction to historical record (fire-and-forget)
+    savePrediction(
+      currentEvent.id,
+      result.players,
+      result.captain,
+      result.totalExpectedPoints
+    ).catch((error) => {
+      console.error('[API /api/optimize] Failed to save prediction', {
+        gameweek: currentEvent.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    });
+
     return Response.json({
       lineup: result.players,
       captain: result.captain,
