@@ -1,6 +1,8 @@
 import type { OptimizeResponse } from '@/lib/types/optimizer';
-import type { Fixture, Team } from '@/lib/types/fpl';
+import type { Fixture, Team, Player } from '@/lib/types/fpl';
 import { FormationPitch } from '@/components/formation-pitch';
+import { TransferTargets } from '@/components/transfer-targets';
+import { FixtureOutlook } from '@/components/fixture-outlook';
 
 async function fetchOptimization(): Promise<OptimizeResponse | null> {
   try {
@@ -42,7 +44,7 @@ async function fetchFixtures(): Promise<Fixture[]> {
   }
 }
 
-async function fetchTeams(): Promise<Team[]> {
+async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[] }> {
   try {
     const res = await fetch('http://localhost:3000/api/fpl/bootstrap-static', {
       cache: 'force-cache',
@@ -51,24 +53,29 @@ async function fetchTeams(): Promise<Team[]> {
 
     if (!res.ok) {
       console.error('[page.tsx] Bootstrap-static API failed:', res.status);
-      return [];
+      return { teams: [], players: [] };
     }
 
     const data = await res.json();
-    return data.teams || [];
+    return {
+      teams: data.teams || [],
+      players: data.elements || [],
+    };
   } catch (error) {
-    console.error('[page.tsx] Failed to fetch teams:', error);
-    return [];
+    console.error('[page.tsx] Failed to fetch bootstrap data:', error);
+    return { teams: [], players: [] };
   }
 }
 
 export default async function Home() {
   // Fetch all data in parallel (async-parallel pattern from react-best-practices)
-  const [data, fixtures, teams] = await Promise.all([
+  const [data, fixtures, bootstrapData] = await Promise.all([
     fetchOptimization(),
     fetchFixtures(),
-    fetchTeams(),
+    fetchBootstrapData(),
   ]);
+
+  const { teams, players } = bootstrapData;
 
   if (!data) {
     return (
@@ -98,14 +105,35 @@ export default async function Home() {
           </p>
         </div>
 
-        {/* Formation Pitch */}
-        <FormationPitch
-          lineup={data.lineup}
-          captain={data.captain}
-          formation={data.formation}
-          fixtures={fixtures}
-          teams={teams}
-        />
+        {/* Responsive Layout Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Formation Pitch - spans 2 columns on desktop */}
+          <div className="lg:col-span-2">
+            <FormationPitch
+              lineup={data.lineup}
+              captain={data.captain}
+              formation={data.formation}
+              fixtures={fixtures}
+              teams={teams}
+            />
+          </div>
+
+          {/* Sidebar - Transfer Targets and Fixture Outlook stacked */}
+          <div className="space-y-6">
+            <TransferTargets
+              allPlayers={players}
+              lineup={data.lineup}
+              fixtures={fixtures}
+              teams={teams}
+            />
+
+            <FixtureOutlook
+              lineup={data.lineup}
+              fixtures={fixtures}
+              teams={teams}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
