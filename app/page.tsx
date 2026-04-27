@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import FplFetch from 'fpl-fetch';
 import type { OptimizeResponse } from '@/lib/types/optimizer';
 import type { Fixture, Team, Player } from '@/lib/types/fpl';
 import { FormationPitch } from '@/components/formation-pitch';
@@ -7,47 +8,24 @@ import { FixtureOutlook } from '@/components/fixture-outlook';
 import { LineupSkeleton } from '@/components/lineup-skeleton';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { CacheHandler } from '@/components/cache-handler';
+import { runOptimization } from '@/lib/optimizer/run-optimization';
+
+export const dynamic = 'force-dynamic';
+
+const fpl = new FplFetch();
 
 async function fetchOptimization(): Promise<OptimizeResponse | null> {
-  try {
-    const res = await fetch('http://localhost:3000/api/optimize', {
-      method: 'POST',
-      cache: 'no-store',
-    });
-
-    if (!res.ok) {
-      console.error('[page.tsx] Optimization API failed:', res.status);
-      return null;
-    }
-
-    const data = await res.json();
-
-    // Cache successful optimization for offline fallback
-    if (data) {
-      console.log('[page.tsx] Optimization successful, caching result');
-      // Note: saveCachedLineup is client-side only, will be called from client wrapper
-    }
-
-    return data;
-  } catch (error) {
-    console.error('[page.tsx] Failed to fetch optimization:', error);
+  const result = await runOptimization();
+  if (!result.ok) {
+    console.error('[page.tsx] Optimization failed:', result.error.error);
     return null;
   }
+  return result.data;
 }
 
 async function fetchFixtures(): Promise<Fixture[]> {
   try {
-    const res = await fetch('http://localhost:3000/api/fpl/fixtures', {
-      cache: 'force-cache',
-      next: { revalidate: 3600 },
-    });
-
-    if (!res.ok) {
-      console.error('[page.tsx] Fixtures API failed:', res.status);
-      return [];
-    }
-
-    const fixtures = await res.json();
+    const fixtures = await fpl.getFixtures();
     console.log(`[page.tsx] Loaded ${fixtures.length} fixtures for tooltip context`);
     return fixtures;
   } catch (error) {
@@ -58,17 +36,7 @@ async function fetchFixtures(): Promise<Fixture[]> {
 
 async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[] }> {
   try {
-    const res = await fetch('http://localhost:3000/api/fpl/bootstrap-static', {
-      cache: 'force-cache',
-      next: { revalidate: 1800 },
-    });
-
-    if (!res.ok) {
-      console.error('[page.tsx] Bootstrap-static API failed:', res.status);
-      return { teams: [], players: [] };
-    }
-
-    const data = await res.json();
+    const data = await fpl.getBootstrapData();
     return {
       teams: data.teams || [],
       players: data.elements || [],

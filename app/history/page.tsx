@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import type { PredictionRecord } from '@/lib/history/predictions';
+import { getPredictions, type PredictionRecord } from '@/lib/history/predictions';
+import { calculateAggregateMetrics } from '@/lib/history/metrics';
 
-/**
- * Aggregate metrics from history API
- */
+export const dynamic = 'force-dynamic';
+
 interface AggregateMetrics {
   mae: number | null;
   captainHitRate: number | null;
@@ -13,37 +13,22 @@ interface AggregateMetrics {
   gameweeksWithActuals: number;
 }
 
-/**
- * History API response shape
- */
 interface HistoryResponse {
   predictions: PredictionRecord[];
   metrics: AggregateMetrics;
 }
 
-/**
- * Fetch historical predictions and metrics from API
- */
 async function fetchHistory(): Promise<HistoryResponse | null> {
   try {
-    const res = await fetch('http://localhost:3000/api/history', {
-      cache: 'no-store',
-    });
-
-    if (!res.ok) {
-      console.error('[history/page.tsx] History API failed:', res.status);
-      return null;
-    }
-
-    const data = await res.json();
+    const predictions = await getPredictions();
+    const metrics = calculateAggregateMetrics(predictions);
     console.log('[history/page.tsx] History loaded', {
-      predictionsCount: data.predictions?.length || 0,
-      gameweeksWithActuals: data.metrics?.gameweeksWithActuals || 0,
+      predictionsCount: predictions.length,
+      gameweeksWithActuals: metrics.gameweeksWithActuals,
     });
-
-    return data;
+    return { predictions, metrics };
   } catch (error) {
-    console.error('[history/page.tsx] Failed to fetch history:', error);
+    console.error('[history/page.tsx] Failed to load history:', error);
     return null;
   }
 }

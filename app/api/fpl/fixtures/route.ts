@@ -3,16 +3,14 @@ import type { Fixture } from '@/lib/types/fpl';
 
 /**
  * Fixtures endpoint
- * 
+ *
  * Returns all fixtures, or fixtures for a specific gameweek if ?event= is provided.
- * Cached for 1 hour (3600 seconds) — fixture data changes infrequently.
- * 
+ *
  * Query params:
  * - event: Optional gameweek number (e.g., ?event=15)
- * 
+ *
  * Response: Fixture[]
  */
-export const revalidate = 3600; // 1 hour
 
 const fpl = new FplFetch();
 
