@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { cn } from '@/lib/utils';
 import { PlayerTooltip } from './player-tooltip';
@@ -46,6 +47,8 @@ export function PlayerCard({
     : expectedPoints;
   const displayLabel = displayMode === 'form' ? 'Form' : 'xP';
 
+  const [portraitFailed, setPortraitFailed] = useState(false);
+
   const photoBase = player.photo
     ? player.photo.replace(/\.jpg$/i, '').replace(/^p/, '')
     : null;
@@ -66,18 +69,20 @@ export function PlayerCard({
         <StatusBadge status={player.status} />
 
         {/* Player portrait */}
-        <div className="w-full h-12 sm:h-14 overflow-hidden bg-black/20">
-          {portraitUrl && (
+        <div className="w-full h-12 sm:h-14 overflow-hidden bg-black/20 flex items-end justify-center">
+          {portraitUrl && !portraitFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={portraitUrl}
               alt=""
               className="w-full h-full object-cover object-top"
-              onError={(e) => {
-                const el = e.target as HTMLImageElement;
-                el.style.display = 'none';
-              }}
+              onError={() => setPortraitFailed(true)}
             />
+          ) : (
+            <svg viewBox="0 0 40 52" fill="currentColor" className="w-9 sm:w-11 opacity-25">
+              <ellipse cx="20" cy="13" rx="9" ry="10" />
+              <path d="M2 52 C2 34 10 26 20 26 C30 26 38 34 38 52 Z" />
+            </svg>
           )}
         </div>
 
