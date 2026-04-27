@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { StatusBadge } from './status-badge';
 
 interface TransferTargetsProps {
   allPlayers: Player[];
@@ -136,7 +137,10 @@ export function TransferTargets({
                     {index + 1}
                   </TableCell>
                   <TableCell className="text-white font-medium">
-                    {player.web_name}
+                    <span className="inline-flex items-center gap-1.5">
+                      {player.web_name}
+                      <StatusBadge status={player.status} inline />
+                    </span>
                   </TableCell>
                   <TableCell className="text-slate-300 text-sm">
                     {team?.short_name || 'N/A'}

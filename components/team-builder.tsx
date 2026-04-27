@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import type { Player, Team } from '@/lib/types/fpl';
-import { cn } from '@/lib/utils';
+import { cn, normalizeStr } from '@/lib/utils';
 import { saveSquad } from '@/app/team/actions';
+import { StatusBadge } from './status-badge';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
   const [posFilter, setPosFilter] = useState<number>(0);
   const [teamFilter, setTeamFilter] = useState('');
   const [maxPrice, setMaxPrice] = useState(0);
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<'pick' | 'squad'>('pick');
   const [isPending, startTransition] = useTransition();
@@ -88,18 +90,19 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
   const isComplete = squad.length === TOTAL_PLAYERS;
 
   const filteredPlayers = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = normalizeStr(search);
     return allPlayers
       .filter((p) => !squadIds.has(p.id))
       .filter((p) => posFilter === 0 || p.element_type === posFilter)
       .filter((p) => !teamFilter || teamShortName.get(p.team) === teamFilter)
       .filter((p) => maxPrice === 0 || p.now_cost <= maxPrice)
+      .filter((p) => !availableOnly || p.status === 'a')
       .filter(
         (p) =>
           !q ||
-          p.web_name.toLowerCase().includes(q) ||
-          (p as unknown as { second_name?: string }).second_name?.toLowerCase().includes(q) ||
-          (p as unknown as { first_name?: string }).first_name?.toLowerCase().includes(q)
+          normalizeStr(p.web_name).includes(q) ||
+          normalizeStr((p as unknown as { second_name?: string }).second_name ?? '').includes(q) ||
+          normalizeStr((p as unknown as { first_name?: string }).first_name ?? '').includes(q)
       )
       .sort((a, b) => {
         const xp = (p: Player) =>
@@ -108,7 +111,7 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
         return xp(b) - xp(a);
       })
       .slice(0, 60);
-  }, [allPlayers, squadIds, posFilter, teamFilter, maxPrice, search, teamShortName]);
+  }, [allPlayers, squadIds, posFilter, teamFilter, maxPrice, availableOnly, search, teamShortName]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -198,6 +201,28 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
             ))}
           </select>
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+          <div
+            role="switch"
+            aria-checked={availableOnly}
+            onClick={() => setAvailableOnly((v) => !v)}
+            className={cn(
+              'relative w-8 h-4 rounded-full border transition-colors',
+              availableOnly
+                ? 'bg-emerald-500/40 border-emerald-500/60'
+                : 'bg-white/5 border-white/10'
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform',
+                availableOnly ? 'bg-emerald-400 translate-x-4' : 'bg-slate-500'
+              )}
+            />
+          </div>
+          <span className="text-xs text-slate-300">Available only</span>
+        </label>
       </div>
 
       {/* Player list */}
@@ -236,7 +261,10 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
                         {POS_NAMES[player.element_type]}
                       </span>
                       <div>
-                        <p className="font-medium text-white text-xs leading-tight">{player.web_name}</p>
+                        <p className="font-medium text-white text-xs leading-tight flex items-center gap-1">
+                          {player.web_name}
+                          <StatusBadge status={player.status} inline />
+                        </p>
                         <p className="text-[10px] text-slate-400">{teamShortName.get(player.team)}</p>
                       </div>
                     </div>

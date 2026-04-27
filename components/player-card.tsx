@@ -4,6 +4,7 @@ import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { cn } from '@/lib/utils';
 import { PlayerTooltip } from './player-tooltip';
 import { CaptainBadge } from './captain-badge';
+import { StatusBadge } from './status-badge';
 import type { DisplayMode } from './formation-pitch';
 
 const TEAM_NAMES: Record<number, string> = {
@@ -61,6 +62,7 @@ export function PlayerCard({
         )}
       >
         <CaptainBadge isCaptain={isCaptain} />
+        <StatusBadge status={player.status} />
 
         {/* Player portrait */}
         <div className="w-full h-12 sm:h-14 overflow-hidden bg-black/20">

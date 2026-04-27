@@ -145,6 +145,22 @@ export function PlayerTooltip({
           )}
         </div>
 
+        {/* Injury / availability */}
+        {player.status !== 'a' && (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-xs
+            bg-slate-800/60 border-slate-700">
+            <span className={`inline-flex items-center justify-center w-5 h-5 rounded font-black border text-[10px] leading-none
+              ${player.status === 'd' ? 'bg-amber-500/80 text-amber-950 border-amber-400'
+              : player.status === 'i' ? 'bg-red-500/80 text-red-100 border-red-400'
+              : 'bg-slate-500/80 text-slate-200 border-slate-400'}`}>
+              {player.status.toUpperCase()}
+            </span>
+            <span className="text-slate-300">
+              {player.status === 'd' ? 'Doubtful' : player.status === 'i' ? 'Injured' : 'Unavailable'}
+            </span>
+          </div>
+        )}
+
         {/* Additional Stats */}
         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-700 text-center text-xs">
           <div>
