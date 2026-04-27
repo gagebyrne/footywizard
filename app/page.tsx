@@ -35,7 +35,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-4 border-b border-white/10 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <Image src="/wizard-icon.svg" alt="FootyWizard" width={32} height={32} unoptimized />
+          <Image src="/wizard-icon.png" alt="FootyWizard" width={32} height={32} unoptimized />
           <span className="font-black text-white text-xl tracking-tight">FootyWizard</span>
         </div>
         <div className="flex items-center gap-3">
@@ -58,7 +58,7 @@ export default function LandingPage() {
       <section className="text-center px-4 pt-20 pb-24 max-w-4xl mx-auto">
         <div className="flex justify-center mb-6">
           <Image
-            src="/wizard-icon.svg"
+            src="/wizard-icon.png"
             alt=""
             width={96}
             height={96}
@@ -131,7 +131,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-8 text-center text-sm text-slate-500">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <Image src="/wizard-icon.svg" alt="" width={18} height={18} unoptimized />
+          <Image src="/wizard-icon.png" alt="" width={18} height={18} unoptimized />
           <span className="font-bold text-slate-400">FootyWizard</span>
         </div>
         <p>Fantasy Premier League optimization — updated every gameweek.</p>

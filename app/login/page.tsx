@@ -25,7 +25,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <Image src="/wizard-icon.svg" alt="FootyWizard" width={48} height={48} unoptimized />
+            <Image src="/wizard-icon.png" alt="FootyWizard" width={48} height={48} unoptimized />
             <span className="text-3xl font-black text-white">FootyWizard</span>
           </Link>
           <p className="text-emerald-300 italic">football made magic</p>

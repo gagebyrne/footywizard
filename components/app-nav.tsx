@@ -10,7 +10,7 @@ export async function AppNav() {
   return (
     <nav className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-black/20 backdrop-blur-sm">
       <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-        <Image src="/wizard-icon.svg" alt="" width={26} height={26} unoptimized />
+        <Image src="/wizard-icon.png" alt="" width={26} height={26} unoptimized />
         <span className="font-black text-white text-lg tracking-tight">FootyWizard</span>
       </Link>
 

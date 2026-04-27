@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/wizard-icon.svg" alt="FootyWizard" width="120"/>
+  <img src="public/wizard-icon.png" alt="FootyWizard" width="120"/>
   <h1>FootyWizard</h1>
   <p>A data-driven Fantasy Premier League lineup optimizer.</p>
 </div>
