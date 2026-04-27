@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110" fill="none">
+  <!-- Hat body (cone) -->
+  <path d="M50 30 L12 90 L88 90 Z" fill="#4338ca"/>
+  <!-- Hat highlight -->
+  <path d="M50 30 L33 68 L50 63 L67 68 Z" fill="#6366f1" opacity="0.35"/>
+  <!-- Stars on hat -->
+  <circle cx="33" cy="63" r="2.5" fill="#fde047"/>
+  <circle cx="54" cy="50" r="2" fill="#fde047" opacity="0.9"/>
+  <circle cx="62" cy="73" r="1.5" fill="#fde047" opacity="0.85"/>
+  <circle cx="25" cy="78" r="1.5" fill="#fde047" opacity="0.75"/>
+  <!-- Hat brim -->
+  <ellipse cx="50" cy="90" rx="38" ry="9" fill="#312e81"/>
+  <path d="M12 90 Q50 82 88 90" stroke="#4f46e5" stroke-width="1.5" fill="none" opacity="0.5"/>
+  <!-- Brim highlight edge -->
+  <ellipse cx="50" cy="90" rx="38" ry="9" stroke="#4f46e5" stroke-width="1" fill="none" opacity="0.4"/>
+
+  <!-- Ball shadow -->
+  <ellipse cx="50" cy="33" rx="13" ry="3" fill="#000000" opacity="0.18"/>
+  <!-- Soccer ball -->
+  <circle cx="50" cy="18" r="16" fill="white"/>
+  <clipPath id="bc">
+    <circle cx="50" cy="18" r="16"/>
+  </clipPath>
+  <g clip-path="url(#bc)" fill="#1e293b">
+    <polygon points="50,10 56.5,14.5 54,22 46,22 43.5,14.5"/>
+    <polygon points="50,2 57.5,7 56.5,14.5 50,10 43.5,14.5 42.5,7"/>
+    <polygon points="57.5,7 66,13 63,21 56.5,14.5"/>
+    <polygon points="42.5,7 34,13 37,21 43.5,14.5"/>
+    <polygon points="54,22 63,21 65.5,30 57,35 50,33"/>
+    <polygon points="46,22 37,21 34.5,30 43,35 50,33"/>
+  </g>
+  <circle cx="50" cy="18" r="16" stroke="#334155" stroke-width="1.5" fill="none"/>
+
+  <!-- Sparkles -->
+  <g fill="#fde047">
+    <path d="M84 30 L86 24 L88 30 L94 32 L88 34 L86 40 L84 34 L78 32 Z"/>
+    <path d="M10 46 L11.5 42 L13 46 L17 47.5 L13 49 L11.5 53 L10 49 L6 47.5 Z" opacity="0.8"/>
+    <path d="M18 22 L19 19 L20 22 L23 23 L20 24 L19 27 L18 24 L15 23 Z" opacity="0.7"/>
+  </g>
+</svg>

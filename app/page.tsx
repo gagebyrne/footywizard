@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
+import Image from 'next/image';
 import FplFetch from 'fpl-fetch';
 import type { OptimizeResponse } from '@/lib/types/optimizer';
 import type { Fixture, Team, Player } from '@/lib/types/fpl';
 import { FormationPitch } from '@/components/formation-pitch';
 import { TransferTargets } from '@/components/transfer-targets';
 import { FixtureOutlook } from '@/components/fixture-outlook';
-import { LineupSkeleton } from '@/components/lineup-skeleton';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { CacheHandler } from '@/components/cache-handler';
 import { runOptimization } from '@/lib/optimizer/run-optimization';
@@ -47,10 +47,6 @@ async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[] 
   }
 }
 
-/**
- * Secondary data component wrapped in Suspense for non-blocking loading.
- * Displays transfer targets and fixture outlook using bootstrap data.
- */
 async function SecondaryData({
   lineup,
   fixtures,
@@ -61,37 +57,45 @@ async function SecondaryData({
   const { teams, players } = await fetchBootstrapData();
 
   return (
-    <>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <TransferTargets
         allPlayers={players}
         lineup={lineup}
         fixtures={fixtures}
         teams={teams}
       />
-
       <FixtureOutlook lineup={lineup} fixtures={fixtures} teams={teams} />
-    </>
+    </div>
+  );
+}
+
+function SecondaryFallback() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+        <p className="text-slate-300 text-sm animate-pulse">Loading transfer targets…</p>
+      </div>
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+        <p className="text-slate-300 text-sm animate-pulse">Loading fixture outlook…</p>
+      </div>
+    </div>
   );
 }
 
 export default async function Home() {
-  // Fetch critical data in parallel (async-parallel pattern from react-best-practices)
   const [data, fixtures, bootstrapData] = await Promise.all([
     fetchOptimization(),
     fetchFixtures(),
     fetchBootstrapData(),
   ]);
 
-  const { teams, players } = bootstrapData;
+  const { teams } = bootstrapData;
 
-  // If optimization fails, try to use cached data
   if (!data) {
     console.log('[page.tsx] Optimization failed, checking cache');
-
-    // Server-side cannot access localStorage, will fallback in ErrorBoundary
     return (
       <ErrorBoundary fixtures={fixtures} teams={teams}>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
           <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
             <h1 className="text-2xl font-bold text-red-400">Failed to load lineup</h1>
             <p className="text-slate-300">
@@ -105,64 +109,78 @@ export default async function Home() {
 
   return (
     <ErrorBoundary fixtures={fixtures} teams={teams}>
-      {/* Cache successful optimization result to localStorage */}
       <CacheHandler data={data} />
 
-      <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header Stats */}
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white drop-shadow-2xl">
-              {data.expectedPoints.toFixed(1)}
-              <span className="text-xl sm:text-2xl ml-2 font-medium text-emerald-300">
-                pts
-              </span>
-            </h1>
-            <p className="text-base sm:text-lg font-medium text-slate-300">
-              Expected Points • {data.formation}
-            </p>
-            <p className="text-sm text-slate-400">
-              £{(data.constraints.budget.used / 10).toFixed(1)}m / £
-              {data.constraints.budget.limit / 10}m
-            </p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900 py-10 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-10">
 
-          {/* Responsive Layout Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Formation Pitch - spans full width on mobile, 2 columns on desktop */}
-            <div className="md:col-span-2 lg:col-span-2">
-              <FormationPitch
-                lineup={data.lineup}
-                captain={data.captain}
-                formation={data.formation}
-                fixtures={fixtures}
-                teams={teams}
+          {/* Brand Header */}
+          <header className="text-center space-y-5">
+            <div className="flex items-center justify-center gap-4">
+              <Image
+                src="/wizard-icon.svg"
+                alt="FootyWizard"
+                width={64}
+                height={64}
+                className="drop-shadow-2xl"
+                unoptimized
               />
+              <div className="text-left">
+                <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-white leading-none">
+                  FootyWizard
+                </h1>
+                <p className="text-emerald-300 text-lg sm:text-xl font-medium italic mt-1">
+                  football made magic
+                </p>
+              </div>
             </div>
 
-            {/* Sidebar - Transfer Targets and Fixture Outlook stacked */}
-            <div className="space-y-6 md:col-span-2 lg:col-span-1">
-              {/* Wrap secondary data in Suspense for non-blocking load */}
-              <Suspense
-                fallback={
-                  <div className="space-y-6">
-                    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                      <p className="text-slate-300 text-sm animate-pulse">
-                        Loading transfer targets...
-                      </p>
-                    </div>
-                    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                      <p className="text-slate-300 text-sm animate-pulse">
-                        Loading fixture outlook...
-                      </p>
-                    </div>
-                  </div>
-                }
-              >
-                <SecondaryData lineup={data.lineup} fixtures={fixtures} />
-              </Suspense>
+            {/* Stats row */}
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+              <div className="text-center">
+                <div className="text-4xl sm:text-5xl font-black text-white leading-none">
+                  {data.expectedPoints.toFixed(1)}
+                  <span className="text-xl sm:text-2xl font-medium text-emerald-300 ml-1.5">
+                    pts
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">
+                  Expected Points
+                </p>
+              </div>
+              <div className="hidden sm:block w-px h-10 bg-white/10" />
+              <div className="text-center">
+                <div className="text-2xl sm:text-3xl font-bold text-white">{data.formation}</div>
+                <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">Formation</p>
+              </div>
+              <div className="hidden sm:block w-px h-10 bg-white/10" />
+              <div className="text-center">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
+                  £{(data.constraints.budget.used / 10).toFixed(1)}m
+                </div>
+                <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">
+                  of £{data.constraints.budget.limit / 10}m budget
+                </p>
+              </div>
             </div>
+          </header>
+
+          {/* Formation Pitch — centered, controlled width */}
+          <div className="max-w-xl mx-auto">
+            <FormationPitch
+              lineup={data.lineup}
+              captain={data.captain}
+              formation={data.formation}
+              fixtures={fixtures}
+              teams={teams}
+            />
           </div>
+
+          {/* Transfer Targets + Fixture Outlook — full width, side by side on lg+ */}
+          <Suspense fallback={<SecondaryFallback />}>
+            <SecondaryData lineup={data.lineup} fixtures={fixtures} />
+          </Suspense>
+
         </div>
       </div>
     </ErrorBoundary>
