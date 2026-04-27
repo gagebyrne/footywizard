@@ -23,8 +23,7 @@
 # misc
 .DS_Store
 *.pem
-.claude/
-.claude*
+.claude/worktrees/
 
 # debug
 npm-debug.log*
