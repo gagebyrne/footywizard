@@ -47,15 +47,18 @@ async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[] 
 async function SecondaryData({
   lineup,
   fixtures,
+  squadIds,
 }: {
   lineup: OptimizeResponse['lineup'];
   fixtures: Fixture[];
+  squadIds: number[];
 }) {
   const { teams, players } = await fetchBootstrapData();
+  const squadPlayers = players.filter(p => squadIds.includes(p.id));
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <TransferTargets allPlayers={players} lineup={lineup} fixtures={fixtures} teams={teams} />
-      <FixtureOutlook lineup={lineup} fixtures={fixtures} teams={teams} />
+      <TransferTargets allPlayers={players} lineup={lineup} squadIds={squadIds} fixtures={fixtures} teams={teams} />
+      <FixtureOutlook players={squadPlayers} fixtures={fixtures} teams={teams} />
     </div>
   );
 }
@@ -94,7 +97,7 @@ export default async function DashboardPage() {
     fetchBootstrapData(),
   ]);
 
-  const { teams } = bootstrapData;
+  const { teams, players: allPlayers } = bootstrapData;
 
   if (!data) {
     return (
@@ -113,6 +116,9 @@ export default async function DashboardPage() {
       </ErrorBoundary>
     );
   }
+
+  const lineupIds = new Set(data.lineup.map(p => p.id));
+  const benchPlayers = allPlayers.filter(p => playerIds.includes(p.id) && !lineupIds.has(p.id));
 
   return (
     <ErrorBoundary fixtures={fixtures} teams={teams}>
@@ -157,11 +163,12 @@ export default async function DashboardPage() {
                 formation={data.formation}
                 fixtures={fixtures}
                 teams={teams}
+                bench={benchPlayers}
               />
             </div>
 
             <Suspense fallback={<SecondaryFallback />}>
-              <SecondaryData lineup={data.lineup} fixtures={fixtures} />
+              <SecondaryData lineup={data.lineup} fixtures={fixtures} squadIds={playerIds} />
             </Suspense>
 
           </div>

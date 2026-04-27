@@ -14,6 +14,7 @@ import { StatusBadge } from './status-badge';
 interface TransferTargetsProps {
   allPlayers: Player[];
   lineup: Player[];
+  squadIds: number[];
   fixtures: Fixture[];
   teams: Team[];
 }
@@ -65,12 +66,12 @@ function getNextFixture(
 export function TransferTargets({
   allPlayers,
   lineup,
+  squadIds,
   fixtures,
   teams,
 }: TransferTargetsProps) {
-  // Filter out players in lineup
-  const lineupIds = new Set(lineup.map(p => p.id));
-  const eligiblePlayers = allPlayers.filter(p => !lineupIds.has(p.id));
+  const squadIdSet = new Set(squadIds);
+  const eligiblePlayers = allPlayers.filter(p => !squadIdSet.has(p.id));
 
   // Calculate expected points for each player
   const playersWithExpectedPoints = eligiblePlayers.map(player => ({
@@ -85,7 +86,7 @@ export function TransferTargets({
   const topTargets = playersWithExpectedPoints.slice(0, 15);
 
   console.log(
-    `[TransferTargets] Showing top 15 from ${eligiblePlayers.length} eligible players (total players: ${allPlayers.length}, lineup: ${lineup.length})`
+    `[TransferTargets] Showing top 15 from ${eligiblePlayers.length} eligible players (total players: ${allPlayers.length}, squad: ${squadIds.length})`
   );
 
   return (

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 
 interface FixtureOutlookProps {
-  lineup: Player[];
+  players: Player[];
   fixtures: Fixture[];
   teams: Team[];
 }
@@ -70,9 +70,8 @@ function classifyFixtureRun(difficulties: number[]): FixtureFlag {
   return null;
 }
 
-export function FixtureOutlook({ lineup, fixtures, teams }: FixtureOutlookProps) {
-  // Calculate fixture runs for all lineup players
-  const playersWithFixtures = lineup.map(player => {
+export function FixtureOutlook({ players, fixtures, teams }: FixtureOutlookProps) {
+  const playersWithFixtures = players.map(player => {
     const nextThree = getNextThreeFixtures(player, fixtures, teams);
     const difficulties = nextThree.map(f => f.difficulty);
     const flag = classifyFixtureRun(difficulties);
@@ -98,7 +97,7 @@ export function FixtureOutlook({ lineup, fixtures, teams }: FixtureOutlookProps)
   const unfavorableCount = playersWithFixtures.filter(p => p.flag === 'unfavorable').length;
 
   console.log(
-    `[FixtureOutlook] Analyzed ${lineup.length} players: ${favorableCount} favorable runs, ${unfavorableCount} unfavorable runs`
+    `[FixtureOutlook] Analyzed ${players.length} players: ${favorableCount} favorable runs, ${unfavorableCount} unfavorable runs`
   );
 
   // Check if fixtures are available

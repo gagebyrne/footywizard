@@ -12,6 +12,7 @@ interface FormationPitchProps {
   expectedPoints?: Map<number, number>;
   fixtures: Fixture[];
   teams: Team[];
+  bench?: Player[];
 }
 
 const FORMATIONS: Record<string, { def: number; mid: number; fwd: number }> = {
@@ -33,6 +34,7 @@ export function FormationPitch({
   expectedPoints,
   fixtures,
   teams,
+  bench,
 }: FormationPitchProps) {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('xp');
 
@@ -139,6 +141,27 @@ export function FormationPitch({
           Formation <span className="text-white ml-1">{formation}</span>
         </p>
       </div>
+
+      {bench && bench.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-slate-800/60 backdrop-blur-sm border border-white/10 px-3 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest text-center mb-3">
+            Bench
+          </p>
+          <div className="flex justify-center gap-2 sm:gap-3">
+            {bench.map((player) => (
+              <PlayerCard
+                key={player.id}
+                player={player}
+                isCaptain={false}
+                expectedPoints={calcXP(player)}
+                fixtures={fixtures}
+                teams={teams}
+                displayMode={displayMode}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

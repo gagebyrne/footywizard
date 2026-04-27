@@ -46,10 +46,11 @@ export function PlayerCard({
     : expectedPoints;
   const displayLabel = displayMode === 'form' ? 'Form' : 'xP';
 
-  // FPL player portrait — code is a standard field on the Element type
-  const playerCode = (player as Player & { code?: number }).code;
-  const portraitUrl = playerCode
-    ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${playerCode}.png`
+  const photoBase = player.photo
+    ? player.photo.replace(/\.jpg$/i, '').replace(/^p/, '')
+    : null;
+  const portraitUrl = photoBase
+    ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${photoBase}.png`
     : null;
 
   return (
