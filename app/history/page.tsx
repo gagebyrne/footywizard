@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { getPredictions, type PredictionRecord } from '@/lib/history/predictions';
 import { calculateAggregateMetrics } from '@/lib/history/metrics';
+import { AppNav } from '@/components/app-nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,18 +63,19 @@ export default async function HistoryPage() {
   // Error state
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900">
-        <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-          <h1 className="text-2xl font-bold text-red-400">Failed to load history</h1>
-          <p className="text-slate-300">
-            Check that the API server is running and try again.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
-          >
-            Back to Home
-          </Link>
+      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+        <AppNav />
+        <div className="flex items-center justify-center py-32 px-4">
+          <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+            <h1 className="text-2xl font-bold text-red-400">Failed to load history</h1>
+            <p className="text-slate-300">Check that the API server is running and try again.</p>
+            <Link
+              href="/dashboard"
+              className="inline-block px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -84,18 +86,21 @@ export default async function HistoryPage() {
   // Empty state
   if (predictions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900">
-        <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
-          <h1 className="text-2xl font-bold text-white">No predictions yet</h1>
-          <p className="text-slate-300">
-            Visit the home page to generate your first lineup and start tracking accuracy.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors font-medium"
-          >
-            Generate Lineup
-          </Link>
+      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+        <AppNav />
+        <div className="flex items-center justify-center py-32 px-4">
+          <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
+            <h1 className="text-2xl font-bold text-white">No predictions yet</h1>
+            <p className="text-slate-300">
+              Visit the dashboard to generate your first lineup and start tracking accuracy.
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors font-medium"
+            >
+              Go to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -105,7 +110,9 @@ export default async function HistoryPage() {
   const sortedPredictions = [...predictions].sort((a, b) => b.gameweek - a.gameweek);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+      <AppNav />
+      <div className="py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -117,12 +124,6 @@ export default async function HistoryPage() {
               Algorithm accuracy across {metrics.totalGameweeks} gameweek{metrics.totalGameweeks !== 1 ? 's' : ''}
             </p>
           </div>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors backdrop-blur-sm border border-white/10 font-medium"
-          >
-            ← Back to Lineup
-          </Link>
         </div>
 
         {/* Metrics Summary */}
@@ -238,6 +239,7 @@ export default async function HistoryPage() {
             Captain points are counted twice in actual totals (consistent with FPL rules).
           </p>
         </div>
+      </div>
       </div>
     </div>
   );
