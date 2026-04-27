@@ -18,14 +18,35 @@ export type OptimizationResult =
 
 const fpl = new FplFetch();
 
-export async function runOptimization(): Promise<OptimizationResult> {
+export async function runOptimization(squadPlayerIds?: number[]): Promise<OptimizationResult> {
   const requestStartTime = Date.now();
-  console.log('[runOptimization] Started');
+  console.log('[runOptimization] Started', { squadSize: squadPlayerIds?.length });
 
   try {
     const bootstrapData = await fpl.getBootstrapData();
-    const players: Player[] = bootstrapData.elements;
+    const allPlayers: Player[] = bootstrapData.elements;
     const teams: Team[] = bootstrapData.teams;
+
+    // Filter to user's squad when provided; otherwise use full player pool
+    const squadIdSet = squadPlayerIds ? new Set(squadPlayerIds) : null;
+    const players: Player[] = squadIdSet
+      ? allPlayers.filter((p) => squadIdSet.has(p.id))
+      : allPlayers;
+
+    if (squadIdSet && players.length < 11) {
+      return {
+        ok: false,
+        status: 422,
+        error: {
+          error: 'SQUAD_TOO_SMALL',
+          message: 'Squad has fewer than 11 available players in the current FPL data.',
+          details: { foundPlayers: players.length, requestedIds: squadPlayerIds?.length },
+        },
+      };
+    }
+
+    // When picking from a saved squad, budget is not a binding constraint.
+    const budgetLimit = squadIdSet ? 99999 : 1000;
     const events: Event[] = bootstrapData.events;
 
     const currentEvent = events.find((e) => e.is_current);
@@ -52,7 +73,7 @@ export async function runOptimization(): Promise<OptimizationResult> {
     const optimizationStartTime = Date.now();
     let result;
     try {
-      result = optimizeAllFormations(players, expectedPoints);
+      result = optimizeAllFormations(players, expectedPoints, budgetLimit);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown validation error';
       console.error('[runOptimization] Validation failure:', message);

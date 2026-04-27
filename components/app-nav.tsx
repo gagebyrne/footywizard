@@ -16,6 +16,12 @@ export async function AppNav() {
 
       <div className="flex items-center gap-3">
         <Link
+          href="/team"
+          className="text-sm text-slate-300 hover:text-white transition-colors hidden sm:block"
+        >
+          My Squad
+        </Link>
+        <Link
           href="/history"
           className="text-sm text-slate-300 hover:text-white transition-colors hidden sm:block"
         >

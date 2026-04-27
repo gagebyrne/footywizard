@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import FplFetch from 'fpl-fetch';
 import type { OptimizeResponse } from '@/lib/types/optimizer';
 import type { Fixture, Team, Player } from '@/lib/types/fpl';
@@ -9,13 +10,14 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { CacheHandler } from '@/components/cache-handler';
 import { AppNav } from '@/components/app-nav';
 import { runOptimization } from '@/lib/optimizer/run-optimization';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 const fpl = new FplFetch();
 
-async function fetchOptimization(): Promise<OptimizeResponse | null> {
-  const result = await runOptimization();
+async function fetchOptimization(squadPlayerIds: number[]): Promise<OptimizeResponse | null> {
+  const result = await runOptimization(squadPlayerIds);
   if (!result.ok) {
     console.error('[dashboard/page.tsx] Optimization failed:', result.error.error);
     return null;
@@ -25,8 +27,7 @@ async function fetchOptimization(): Promise<OptimizeResponse | null> {
 
 async function fetchFixtures(): Promise<Fixture[]> {
   try {
-    const fixtures = await fpl.getFixtures();
-    return fixtures;
+    return await fpl.getFixtures();
   } catch (error) {
     console.error('[dashboard/page.tsx] Failed to fetch fixtures:', error);
     return [];
@@ -73,8 +74,22 @@ function SecondaryFallback() {
 }
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  // Redirect to team setup if no squad saved yet
+  const { data: squadData } = await supabase
+    .from('user_squads')
+    .select('player_ids')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const playerIds: number[] = squadData?.player_ids ?? [];
+  if (playerIds.length < 15) redirect('/team');
+
   const [data, fixtures, bootstrapData] = await Promise.all([
-    fetchOptimization(),
+    fetchOptimization(playerIds),
     fetchFixtures(),
     fetchBootstrapData(),
   ]);
@@ -109,19 +124,14 @@ export default async function DashboardPage() {
         <div className="py-10 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto space-y-10">
 
-            {/* Stats header */}
             <header className="text-center space-y-4">
               <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
                 <div className="text-center">
                   <div className="text-4xl sm:text-5xl font-black text-white leading-none">
                     {data.expectedPoints.toFixed(1)}
-                    <span className="text-xl sm:text-2xl font-medium text-emerald-300 ml-1.5">
-                      pts
-                    </span>
+                    <span className="text-xl sm:text-2xl font-medium text-emerald-300 ml-1.5">pts</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">
-                    Expected Points
-                  </p>
+                  <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">Expected Points</p>
                 </div>
                 <div className="hidden sm:block w-px h-10 bg-white/10" />
                 <div className="text-center">
@@ -134,13 +144,12 @@ export default async function DashboardPage() {
                     £{(data.constraints.budget.used / 10).toFixed(1)}m
                   </div>
                   <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">
-                    of £{data.constraints.budget.limit / 10}m budget
+                    Squad Value
                   </p>
                 </div>
               </div>
             </header>
 
-            {/* Formation Pitch */}
             <div className="max-w-xl mx-auto">
               <FormationPitch
                 lineup={data.lineup}
@@ -151,7 +160,6 @@ export default async function DashboardPage() {
               />
             </div>
 
-            {/* Transfer Targets + Fixture Outlook */}
             <Suspense fallback={<SecondaryFallback />}>
               <SecondaryData lineup={data.lineup} fixtures={fixtures} />
             </Suspense>

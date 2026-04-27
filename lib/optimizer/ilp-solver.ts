@@ -59,16 +59,17 @@ export interface OptimizationResult {
 export function solveLineup(
   players: Player[],
   formation: Formation,
-  expectedPoints: Map<number, number>
+  expectedPoints: Map<number, number>,
+  budgetLimit: number = 1000
 ): OptimizationResult | null {
   const startTime = Date.now();
-  
+
   // Build ILP model
   const model: any = {
     optimize: 'expectedPoints',
     opType: 'max',
     constraints: {
-      budget: { max: 1000 }, // £100m in £0.1m units
+      budget: { max: budgetLimit },
       totalSelected: { equal: 11 },
       gkCount: { equal: formation.gk },
       defCount: { equal: formation.def },
@@ -196,7 +197,8 @@ export function solveLineup(
  */
 export function optimizeAllFormations(
   players: Player[],
-  expectedPoints: Map<number, number>
+  expectedPoints: Map<number, number>,
+  budgetLimit: number = 1000
 ): OptimizationResult | null {
   const startTime = Date.now();
   let bestResult: OptimizationResult | null = null;
@@ -209,7 +211,7 @@ export function optimizeAllFormations(
     const formation = VALID_FORMATIONS[formationName];
     const formationStartTime = Date.now();
     
-    const result = solveLineup(players, formation, expectedPoints);
+    const result = solveLineup(players, formation, expectedPoints, budgetLimit);
     const formationSolveTime = Date.now() - formationStartTime;
     
     if (result === null) {
