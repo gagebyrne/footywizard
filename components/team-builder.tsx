@@ -184,20 +184,20 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
-            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="flex-1 rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
           >
-            <option value="">All teams</option>
+            <option value="" className="bg-slate-800 text-slate-100">All teams</option>
             {sortedTeamNames.map((name) => (
-              <option key={name} value={name}>{name}</option>
+              <option key={name} value={name} className="bg-slate-800 text-slate-100">{name}</option>
             ))}
           </select>
           <select
             value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
-            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="flex-1 rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
           >
             {PRICE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value} className="bg-slate-800 text-slate-100">{o.label}</option>
             ))}
           </select>
         </div>
