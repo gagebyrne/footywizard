@@ -1,47 +1,30 @@
 /**
- * Optimizer type definitions
- * 
- * Types for the ILP-based team optimization engine.
+ * Optimizer type definitions.
  */
 
 import type { Player } from './fpl';
 
-/**
- * Expected points calculation result
- */
 export interface ExpectedPointsResult {
-  /**
-   * Calculated expected points for the player
-   */
   points: number;
-
-  /**
-   * Fixture score component (0-5, higher is easier)
-   */
   fixtureScore: number;
-
-  /**
-   * Form score component (0-10 typically)
-   */
   formScore: number;
 }
 
-/**
- * Constraint status returned by optimization API
- */
 export interface ConstraintStatus {
   budget: { used: number; limit: number };
   positions: Record<string, number>;
   teamLimits: Record<string, number>;
 }
 
-/**
- * Optimization API response
- */
 export interface OptimizeResponse {
+  /** Selected players. May contain fewer than 11 when `partial` is true. */
   lineup: Player[];
-  captain: Player;
+  /** Captain — null only if zero viable players were available. */
+  captain: Player | null;
+  /** Total expected points INCLUDING the captain bonus (sum of lineup xP + captain xP). */
   expectedPoints: number;
   formation: string;
+  /** True when the squad lacked enough viable players for a full XI; some pitch slots will be empty. */
+  partial: boolean;
   constraints: ConstraintStatus;
 }

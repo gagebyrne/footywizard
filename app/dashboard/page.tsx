@@ -156,6 +156,14 @@ export default async function DashboardPage() {
               </div>
             </header>
 
+            {data.partial && (
+              <div className="max-w-xl mx-auto rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                <strong className="font-semibold">Partial lineup.</strong>{' '}
+                Some pitch slots are empty because squad players are unavailable
+                (injured, doubtful, suspended) or have no fixture in this gameweek.
+              </div>
+            )}
+
             <div className="max-w-xl mx-auto">
               <FormationPitch
                 lineup={data.lineup}

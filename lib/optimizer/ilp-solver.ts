@@ -1,10 +1,16 @@
 /**
  * ILP-based lineup optimizer
- * 
- * Uses Integer Linear Programming to find optimal 11-player lineup
- * respecting FPL constraints: budget, formation, team limits.
- * 
- * Multi-formation solver that tries all 7 valid FPL formations.
+ *
+ * Multi-formation ILP that maximises expected points subject to FPL constraints
+ * (budget, formation, max 3 per club). Two-pass:
+ *
+ * 1. Exact pass — total = 11, position counts match formation exactly.
+ * 2. Partial fallback — total ≤ 11, position counts ≤ formation. Used when the
+ *    squad has too few viable players to fill a full XI.
+ *
+ * Captain-aware: each candidate captain c is solved with c's xP doubled and
+ * c pinned into the lineup. Best (lineup × captain) wins, where "best" =
+ * lineup xP + captain xP (i.e., total points with captain bonus).
  */
 
 import type { Player } from '../types/fpl';
@@ -12,87 +18,80 @@ import { VALID_FORMATIONS, validateLineup } from './formation-validator';
 // @ts-ignore - javascript-lp-solver has no types
 import solver from 'javascript-lp-solver';
 
-/**
- * Formation definition (position counts)
- */
 export interface Formation {
-  gk: number;  // Goalkeepers (always 1)
-  def: number; // Defenders
-  mid: number; // Midfielders
-  fwd: number; // Forwards
+  gk: number;
+  def: number;
+  mid: number;
+  fwd: number;
 }
 
-/**
- * Optimization result
- */
 export interface OptimizationResult {
-  /** Selected 11 players */
+  /** Selected players (≤ 11 in partial mode). */
   players: Player[];
-  
-  /** Captain (player with highest expected points) */
-  captain: Player;
-  
-  /** Total squad cost in £0.1m units */
+  /** Captain — null only if no viable players. */
+  captain: Player | null;
+  /** Sum of player.now_cost across the lineup. */
   totalCost: number;
-  
-  /** Total expected points */
+  /**
+   * Total expected points INCLUDING the captain bonus
+   * (sum of selected players' xP + captain's xP).
+   */
   totalExpectedPoints: number;
-  
-  /** Solve time in milliseconds */
+  /** True if some slots are empty (partial fallback was used). */
+  partial: boolean;
+  /** Solve time in milliseconds. */
   solveTimeMs: number;
 }
 
+interface SolveOptions {
+  budgetLimit?: number;
+  partial?: boolean;
+  /** Captain candidate. xP is doubled in the objective and the player is forced selected. */
+  captainId?: number;
+}
+
 /**
- * Solve optimal lineup for given formation
- * 
- * Creates ILP model with:
- * - Objective: maximize sum of selected players' expected points
- * - Binary decision variable per player (0=not selected, 1=selected)
- * - Constraints: budget (£100m), position counts, team limits (max 3), total 11 players
- * - 10s timeout
- * 
- * @param players - All available players
- * @param formation - Formation to optimize for (4-4-2 for M001)
- * @param expectedPoints - Map of player ID to expected points
- * @returns Optimization result, or null if infeasible
+ * Solve a single (formation, captain, mode) ILP.
+ * Returns the selected players in solver order, or null if infeasible.
  */
-export function solveLineup(
+function solveOne(
   players: Player[],
   formation: Formation,
   expectedPoints: Map<number, number>,
-  budgetLimit: number = 1000
-): OptimizationResult | null {
-  const startTime = Date.now();
+  options: SolveOptions
+): Player[] | null {
+  const { budgetLimit = 1000, partial = false, captainId } = options;
 
-  // Build ILP model
+  const totalConstraint = partial ? { max: 11 } : { equal: 11 };
+  const posConstraint = (n: number) => (partial ? { max: n } : { equal: n });
+
   const model: any = {
     optimize: 'expectedPoints',
     opType: 'max',
     constraints: {
       budget: { max: budgetLimit },
-      totalSelected: { equal: 11 },
-      gkCount: { equal: formation.gk },
-      defCount: { equal: formation.def },
-      midCount: { equal: formation.mid },
-      fwdCount: { equal: formation.fwd },
+      totalSelected: totalConstraint,
+      gkCount: posConstraint(formation.gk),
+      defCount: posConstraint(formation.def),
+      midCount: posConstraint(formation.mid),
+      fwdCount: posConstraint(formation.fwd),
     },
     variables: {} as Record<string, any>,
     binaries: {} as Record<string, number>,
   };
 
-  // Add team limit constraints (max 3 players per team)
-  const teamIds = new Set(players.map(p => p.team));
+  const teamIds = new Set(players.map((p) => p.team));
   for (const teamId of teamIds) {
     model.constraints[`team_${teamId}`] = { max: 3 };
   }
 
-  // Add decision variable per player
   for (const player of players) {
     const varName = `player_${player.id}`;
-    const points = expectedPoints.get(player.id) ?? 0;
-    
+    const basePoints = expectedPoints.get(player.id) ?? 0;
+    const objCoeff = player.id === captainId ? basePoints * 2 : basePoints;
+
     model.variables[varName] = {
-      expectedPoints: points,
+      expectedPoints: objCoeff,
       budget: player.now_cost,
       totalSelected: 1,
       gkCount: player.element_type === 1 ? 1 : 0,
@@ -101,152 +100,178 @@ export function solveLineup(
       fwdCount: player.element_type === 4 ? 1 : 0,
       [`team_${player.team}`]: 1,
     };
-    
-    // Mark as binary variable (0 or 1)
     model.binaries[varName] = 1;
   }
 
-  // Solve with 10s timeout
-  let result: any;
-  try {
-    const timeoutMs = 10000;
-    const timeoutHandle = setTimeout(() => {
-      throw new Error('Solver timeout');
-    }, timeoutMs);
-    
-    result = solver.Solve(model);
-    clearTimeout(timeoutHandle);
-  } catch (error) {
-    const solveTimeMs = Date.now() - startTime;
-    console.error(`[ILP Solver] Solve failed after ${solveTimeMs}ms:`, error);
-    return null;
-  }
-
-  const solveTimeMs = Date.now() - startTime;
-
-  // Check feasibility
-  if (!result.feasible) {
-    console.warn('[ILP Solver] Infeasible solution', {
-      solveTimeMs,
-      playerCount: players.length,
-      formation,
-      reason: 'No valid lineup satisfies all constraints',
-    });
-    return null;
-  }
-
-  // Extract selected players
-  const selectedPlayers: Player[] = [];
-  for (const [varName, value] of Object.entries(result)) {
-    if (typeof value === 'number' && value > 0.5 && varName.startsWith('player_')) {
-      const playerId = parseInt(varName.replace('player_', ''), 10);
-      const player = players.find(p => p.id === playerId);
-      if (player) {
-        selectedPlayers.push(player);
+  // Pin captain into the lineup with an equality constraint on a unique selector.
+  if (captainId !== undefined) {
+    const captainKey = `pin_captain`;
+    model.constraints[captainKey] = { equal: 1 };
+    const captainVar = model.variables[`player_${captainId}`];
+    if (!captainVar) return null;
+    captainVar[captainKey] = 1;
+    for (const player of players) {
+      if (player.id !== captainId) {
+        model.variables[`player_${player.id}`][captainKey] = 0;
       }
     }
   }
 
-  // Validate result
-  if (selectedPlayers.length !== 11) {
-    console.error('[ILP Solver] Invalid result: expected 11 players, got', selectedPlayers.length);
+  let result: any;
+  try {
+    result = solver.Solve(model);
+  } catch (error) {
+    console.error('[ILP Solver] Solve threw:', error);
     return null;
   }
 
-  // Calculate totals
-  const totalCost = selectedPlayers.reduce((sum, p) => sum + p.now_cost, 0);
-  const totalExpectedPoints = selectedPlayers.reduce(
-    (sum, p) => sum + (expectedPoints.get(p.id) ?? 0),
-    0
-  );
+  if (!result.feasible) return null;
 
-  // Select captain (highest expected points)
-  const captain = selectedPlayers.reduce((best, p) => {
-    const pPoints = expectedPoints.get(p.id) ?? 0;
-    const bestPoints = expectedPoints.get(best.id) ?? 0;
-    return pPoints > bestPoints ? p : best;
-  });
+  const selected: Player[] = [];
+  for (const [varName, value] of Object.entries(result)) {
+    if (typeof value === 'number' && value > 0.5 && varName.startsWith('player_')) {
+      const id = parseInt(varName.replace('player_', ''), 10);
+      const p = players.find((pl) => pl.id === id);
+      if (p) selected.push(p);
+    }
+  }
+  return selected;
+}
 
-  console.log('[ILP Solver] Solution found', {
-    solveTimeMs,
-    totalCost,
-    totalExpectedPoints,
-    captainId: captain.id,
-    captainName: captain.web_name,
-  });
+interface Candidate {
+  players: Player[];
+  captain: Player;
+  formationName: string;
+  formation: Formation;
+  /** Sum of xP across selected players (no captain bonus). */
+  baseSum: number;
+  /** baseSum + captain.xP — the value displayed and used to rank. */
+  totalWithCaptainBonus: number;
+}
 
+function buildCandidate(
+  selected: Player[],
+  captain: Player,
+  formationName: string,
+  formation: Formation,
+  expectedPoints: Map<number, number>
+): Candidate {
+  const baseSum = selected.reduce((s, p) => s + (expectedPoints.get(p.id) ?? 0), 0);
+  const captainXp = expectedPoints.get(captain.id) ?? 0;
   return {
-    players: selectedPlayers,
+    players: selected,
     captain,
-    totalCost,
-    totalExpectedPoints,
-    solveTimeMs,
+    formationName,
+    formation,
+    baseSum,
+    totalWithCaptainBonus: baseSum + captainXp,
   };
 }
 
 /**
- * Optimize across all valid FPL formations
- * 
- * Tries all 7 valid formations and returns the one with highest total expected points.
- * Runs defensive validation on the winning lineup to catch solver bugs.
- * 
- * @param players - All available players
- * @param expectedPoints - Map of player ID to expected points
- * @returns Best optimization result across all formations, or null if all infeasible
- * @throws Error if validation fails (indicates solver bug)
+ * Tiebreak: in partial mode, prefer formations with the most filled slots,
+ * then highest total points, then alphabetical formation name (deterministic).
  */
+function comparePartial(a: Candidate, b: Candidate): number {
+  if (a.players.length !== b.players.length) return b.players.length - a.players.length;
+  if (a.totalWithCaptainBonus !== b.totalWithCaptainBonus) {
+    return b.totalWithCaptainBonus - a.totalWithCaptainBonus;
+  }
+  return a.formationName.localeCompare(b.formationName);
+}
+
+function compareExact(a: Candidate, b: Candidate): number {
+  if (a.totalWithCaptainBonus !== b.totalWithCaptainBonus) {
+    return b.totalWithCaptainBonus - a.totalWithCaptainBonus;
+  }
+  return a.formationName.localeCompare(b.formationName);
+}
+
+/**
+ * Pick captain candidates: top N by xP. With ≤ 30 viable players we use them
+ * all; for full-pool optimisation (~600 players) we cap at 30 to keep the
+ * outer loop tractable. The optimal captain is always among the high-xP set.
+ */
+function captainCandidates(players: Player[], expectedPoints: Map<number, number>, cap = 20): Player[] {
+  const withPoints = players.filter((p) => (expectedPoints.get(p.id) ?? 0) > 0);
+  if (withPoints.length === 0) return [];
+  return [...withPoints]
+    .sort((a, b) => (expectedPoints.get(b.id) ?? 0) - (expectedPoints.get(a.id) ?? 0))
+    .slice(0, cap);
+}
+
 export function optimizeAllFormations(
   players: Player[],
   expectedPoints: Map<number, number>,
   budgetLimit: number = 1000
 ): OptimizationResult | null {
   const startTime = Date.now();
-  let bestResult: OptimizationResult | null = null;
-  let bestFormationName = '';
-  
   const formationNames = Object.keys(VALID_FORMATIONS);
-  console.log(`[Multi-Formation] Trying ${formationNames.length} formations...`);
+  const captains = captainCandidates(players, expectedPoints);
 
-  for (const formationName of formationNames) {
-    const formation = VALID_FORMATIONS[formationName];
-    const formationStartTime = Date.now();
-    
-    const result = solveLineup(players, formation, expectedPoints, budgetLimit);
-    const formationSolveTime = Date.now() - formationStartTime;
-    
-    if (result === null) {
-      console.log(`[Multi-Formation] ${formationName}: infeasible (${formationSolveTime}ms)`);
-      continue;
-    }
-
-    console.log(`[Multi-Formation] ${formationName}: ${result.totalExpectedPoints.toFixed(2)} pts (${formationSolveTime}ms)`);
-
-    if (bestResult === null || result.totalExpectedPoints > bestResult.totalExpectedPoints) {
-      bestResult = result;
-      bestFormationName = formationName;
-    }
-  }
-
-  const totalTime = Date.now() - startTime;
-
-  if (bestResult === null) {
-    console.warn('[Multi-Formation] All formations infeasible', {
-      totalTime,
-      playerCount: players.length,
-      formationsAttempted: formationNames.length,
-    });
+  if (captains.length === 0) {
+    console.warn('[Multi-Formation] No players with positive xP — nothing to optimise');
     return null;
   }
 
-  // Defensive validation: catch solver bugs
-  const formation = VALID_FORMATIONS[bestFormationName];
-  const validation = validateLineup(bestResult.players, formation);
+  // Pass 1: exact mode
+  const exactCandidates: Candidate[] = [];
+  for (const formationName of formationNames) {
+    const formation = VALID_FORMATIONS[formationName];
+    for (const captain of captains) {
+      const selected = solveOne(players, formation, expectedPoints, {
+        budgetLimit,
+        partial: false,
+        captainId: captain.id,
+      });
+      if (selected && selected.length === 11) {
+        exactCandidates.push(
+          buildCandidate(selected, captain, formationName, formation, expectedPoints)
+        );
+      }
+    }
+  }
 
+  let best: Candidate | null = null;
+  let partial = false;
+
+  if (exactCandidates.length > 0) {
+    exactCandidates.sort(compareExact);
+    best = exactCandidates[0];
+  } else {
+    // Pass 2: partial fallback
+    const partialCandidates: Candidate[] = [];
+    for (const formationName of formationNames) {
+      const formation = VALID_FORMATIONS[formationName];
+      for (const captain of captains) {
+        const selected = solveOne(players, formation, expectedPoints, {
+          budgetLimit,
+          partial: true,
+          captainId: captain.id,
+        });
+        if (selected && selected.length > 0) {
+          partialCandidates.push(
+            buildCandidate(selected, captain, formationName, formation, expectedPoints)
+          );
+        }
+      }
+    }
+    if (partialCandidates.length === 0) {
+      console.warn('[Multi-Formation] All formations infeasible (exact and partial)');
+      return null;
+    }
+    partialCandidates.sort(comparePartial);
+    best = partialCandidates[0];
+    partial = true;
+  }
+
+  // Defensive validation — catches solver bugs
+  const validation = validateLineup(best.players, best.formation, { budgetLimit, partial });
   if (!validation.valid) {
-    // Validation failure indicates solver bug — log ILP model for debugging
-    const modelDebug = {
-      formation: bestFormationName,
-      lineup: bestResult.players.map(p => ({
+    const debug = {
+      formation: best.formationName,
+      partial,
+      lineup: best.players.map((p) => ({
         id: p.id,
         name: p.web_name,
         team: p.team,
@@ -254,24 +279,70 @@ export function optimizeAllFormations(
         cost: p.now_cost,
         expectedPoints: expectedPoints.get(p.id),
       })),
-      totalCost: bestResult.totalCost,
-      totalExpectedPoints: bestResult.totalExpectedPoints,
+      captainId: best.captain.id,
       violations: validation.violations,
     };
-
-    console.error('[Multi-Formation] Validation failed (solver bug)', modelDebug);
+    console.error('[Multi-Formation] Validation failed (solver bug)', debug);
     throw new Error(
-      `Lineup validation failed: ${validation.violations.join(', ')}. ILP model: ${JSON.stringify(modelDebug)}`
+      `Lineup validation failed: ${validation.violations.join(', ')}. Debug: ${JSON.stringify(debug)}`
     );
   }
 
-  console.log('[Multi-Formation] Best formation selected', {
-    formation: bestFormationName,
-    totalExpectedPoints: bestResult.totalExpectedPoints.toFixed(2),
-    totalCost: bestResult.totalCost,
-    captainName: bestResult.captain.web_name,
+  const totalCost = best.players.reduce((s, p) => s + p.now_cost, 0);
+  const totalTime = Date.now() - startTime;
+
+  console.log('[Multi-Formation] Best selected', {
+    formation: best.formationName,
+    partial,
+    filledSlots: best.players.length,
+    totalWithCaptainBonus: best.totalWithCaptainBonus.toFixed(2),
+    captain: best.captain.web_name,
+    totalCost,
     totalTime,
   });
 
-  return bestResult;
+  return {
+    players: best.players,
+    captain: best.captain,
+    totalCost,
+    totalExpectedPoints: best.totalWithCaptainBonus,
+    partial,
+    solveTimeMs: totalTime,
+  };
+}
+
+/**
+ * Single-formation solver. Kept for the existing unit tests, which exercise
+ * the exact ILP without the captain-aware outer loop.
+ */
+export function solveLineup(
+  players: Player[],
+  formation: Formation,
+  expectedPoints: Map<number, number>,
+  budgetLimit: number = 1000
+): OptimizationResult | null {
+  const startTime = Date.now();
+  const selected = solveOne(players, formation, expectedPoints, {
+    budgetLimit,
+    partial: false,
+  });
+  if (!selected || selected.length !== 11) return null;
+
+  const totalCost = selected.reduce((sum, p) => sum + p.now_cost, 0);
+  const baseSum = selected.reduce((sum, p) => sum + (expectedPoints.get(p.id) ?? 0), 0);
+  const captain = selected.reduce((best, p) => {
+    const pPoints = expectedPoints.get(p.id) ?? 0;
+    const bestPoints = expectedPoints.get(best.id) ?? 0;
+    return pPoints > bestPoints ? p : best;
+  });
+  const captainXp = expectedPoints.get(captain.id) ?? 0;
+
+  return {
+    players: selected,
+    captain,
+    totalCost,
+    totalExpectedPoints: baseSum + captainXp,
+    partial: false,
+    solveTimeMs: Date.now() - startTime,
+  };
 }

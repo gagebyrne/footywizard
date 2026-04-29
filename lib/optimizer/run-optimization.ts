@@ -4,6 +4,7 @@ import type { OptimizeResponse, ConstraintStatus } from '@/lib/types/optimizer';
 import { calculateExpectedPoints } from '@/lib/optimizer/expected-points';
 import { optimizeAllFormations } from '@/lib/optimizer/ilp-solver';
 import { VALID_FORMATIONS } from '@/lib/optimizer/formation-validator';
+import { applyPositionOverride } from '@/lib/optimizer/fixture-difficulty';
 import { savePrediction } from '@/lib/history/predictions';
 
 export interface OptimizationError {
@@ -18,6 +19,11 @@ export type OptimizationResult =
 
 const fpl = new FplFetch();
 
+function isViable(player: Player, fixtures: Fixture[]): boolean {
+  if (player.status !== 'a') return false;
+  return fixtures.some((f) => f.team_h === player.team || f.team_a === player.team);
+}
+
 export async function runOptimization(squadPlayerIds?: number[]): Promise<OptimizationResult> {
   const requestStartTime = Date.now();
   console.log('[runOptimization] Started', { squadSize: squadPlayerIds?.length });
@@ -27,53 +33,55 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
     const allPlayers: Player[] = bootstrapData.elements;
     const teams: Team[] = bootstrapData.teams;
 
-    // Filter to user's squad when provided; otherwise use full player pool
     const squadIdSet = squadPlayerIds ? new Set(squadPlayerIds) : null;
-    const players: Player[] = squadIdSet
+    const squadPlayers: Player[] = squadIdSet
       ? allPlayers.filter((p) => squadIdSet.has(p.id))
       : allPlayers;
 
-    if (squadIdSet && players.length < 11) {
+    if (squadIdSet && squadPlayers.length < 11) {
       return {
         ok: false,
         status: 422,
         error: {
           error: 'SQUAD_TOO_SMALL',
           message: 'Squad has fewer than 11 available players in the current FPL data.',
-          details: { foundPlayers: players.length, requestedIds: squadPlayerIds?.length },
+          details: { foundPlayers: squadPlayers.length, requestedIds: squadPlayerIds?.length },
         },
       };
     }
 
-    // When picking from a saved squad, budget is not a binding constraint.
+    // Saved-squad mode: budget already locked in at squad-creation time;
+    // ignore further price drift. Full-pool mode: enforce £100m.
     const budgetLimit = squadIdSet ? 99999 : 1000;
-    const events: Event[] = bootstrapData.events;
 
+    const events: Event[] = bootstrapData.events;
     const currentEvent = events.find((e) => e.is_current);
     if (!currentEvent) {
       console.error('[runOptimization] No current gameweek found');
       return {
         ok: false,
         status: 500,
-        error: {
-          error: 'NO_CURRENT_GAMEWEEK',
-          message: 'Unable to determine current gameweek',
-        },
+        error: { error: 'NO_CURRENT_GAMEWEEK', message: 'Unable to determine current gameweek' },
       };
     }
 
-    const allFixtures = await fpl.getFixtures();
+    const allFixturesRaw = await fpl.getFixtures();
+    const allFixtures = applyPositionOverride(allFixturesRaw, teams);
     const fixtures: Fixture[] = allFixtures.filter((f) => f.event === currentEvent.id);
 
+    // Pre-filter the pool: drop unavailables and players with no fixture this GW.
+    // The ILP only sees players that can actually contribute.
+    const viablePlayers = squadPlayers.filter((p) => isViable(p, fixtures));
+
     const expectedPoints = new Map<number, number>();
-    for (const player of players) {
+    for (const player of viablePlayers) {
       expectedPoints.set(player.id, calculateExpectedPoints(player, fixtures, teams));
     }
 
     const optimizationStartTime = Date.now();
     let result;
     try {
-      result = optimizeAllFormations(players, expectedPoints, budgetLimit);
+      result = optimizeAllFormations(viablePlayers, expectedPoints, budgetLimit);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown validation error';
       console.error('[runOptimization] Validation failure:', message);
@@ -91,9 +99,10 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
     const solveTimeMs = Date.now() - optimizationStartTime;
 
     if (result === null) {
-      console.warn('[runOptimization] No valid lineup found (infeasible)', {
+      console.warn('[runOptimization] No viable lineup', {
         solveTimeMs,
-        playerCount: players.length,
+        squadSize: squadPlayers.length,
+        viableSize: viablePlayers.length,
       });
       return {
         ok: false,
@@ -101,40 +110,63 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
         error: {
           error: 'NO_VALID_LINEUP',
           message:
-            'No valid lineup satisfies all constraints (budget, positions, team limits)',
+            'No viable players in this squad for the current gameweek (all unavailable or no fixtures).',
           details: {
-            playerCount: players.length,
-            availablePlayers: players.filter((p) => p.status === 'a').length,
+            squadSize: squadPlayers.length,
+            viableSize: viablePlayers.length,
             solveTimeMs,
           },
         },
       };
     }
 
-    const formationName =
-      Object.keys(VALID_FORMATIONS).find((name) => {
-        const formation = VALID_FORMATIONS[name];
-        const positionCounts = {
-          gk: result.players.filter((p) => p.element_type === 1).length,
-          def: result.players.filter((p) => p.element_type === 2).length,
-          mid: result.players.filter((p) => p.element_type === 3).length,
-          fwd: result.players.filter((p) => p.element_type === 4).length,
-        };
-        return (
-          positionCounts.gk === formation.gk &&
-          positionCounts.def === formation.def &&
-          positionCounts.mid === formation.mid &&
-          positionCounts.fwd === formation.fwd
-        );
-      }) || 'unknown';
+    // Find the formation skeleton that matches the (possibly partial) result.
+    // In partial mode we want the formation we actually solved against; the
+    // ILP returned that via captain/players, but we re-derive it by matching
+    // counts ≤ each formation's caps in priority order (most-filled first).
+    const lineupCounts = {
+      gk: result.players.filter((p) => p.element_type === 1).length,
+      def: result.players.filter((p) => p.element_type === 2).length,
+      mid: result.players.filter((p) => p.element_type === 3).length,
+      fwd: result.players.filter((p) => p.element_type === 4).length,
+    };
+    let formationName = 'unknown';
+    if (!result.partial) {
+      formationName =
+        Object.keys(VALID_FORMATIONS).find((name) => {
+          const f = VALID_FORMATIONS[name];
+          return (
+            lineupCounts.gk === f.gk &&
+            lineupCounts.def === f.def &&
+            lineupCounts.mid === f.mid &&
+            lineupCounts.fwd === f.fwd
+          );
+        }) || 'unknown';
+    } else {
+      // Pick the formation whose caps cover lineupCounts and has the smallest
+      // total empty slots (== smallest formation size − filled). All formations
+      // total 11, so this reduces to: any formation whose caps cover the
+      // counts. Tiebreak alphabetically for determinism.
+      const filled = result.players.length;
+      formationName =
+        [...Object.keys(VALID_FORMATIONS)].sort().find((name) => {
+          const f = VALID_FORMATIONS[name];
+          return (
+            lineupCounts.gk <= f.gk &&
+            lineupCounts.def <= f.def &&
+            lineupCounts.mid <= f.mid &&
+            lineupCounts.fwd <= f.fwd &&
+            filled <= 11
+          );
+        }) || 'unknown';
+    }
 
     const positionCounts = {
-      GK: result.players.filter((p) => p.element_type === 1).length,
-      DEF: result.players.filter((p) => p.element_type === 2).length,
-      MID: result.players.filter((p) => p.element_type === 3).length,
-      FWD: result.players.filter((p) => p.element_type === 4).length,
+      GK: lineupCounts.gk,
+      DEF: lineupCounts.def,
+      MID: lineupCounts.mid,
+      FWD: lineupCounts.fwd,
     };
-
     const teamCounts: Record<string, number> = {};
     for (const player of result.players) {
       const teamName =
@@ -150,23 +182,27 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
 
     console.log('[runOptimization] Success', {
       formation: formationName,
+      partial: result.partial,
+      filledSlots: result.players.length,
       totalExpectedPoints: result.totalExpectedPoints.toFixed(2),
       solveTimeMs,
       totalTimeMs: Date.now() - requestStartTime,
     });
 
-    savePrediction(
-      currentEvent.id,
-      result.players,
-      result.captain,
-      result.totalExpectedPoints,
-      formationName
-    ).catch((error) => {
-      console.error('[runOptimization] Failed to save prediction', {
-        gameweek: currentEvent.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
+    if (result.captain) {
+      savePrediction(
+        currentEvent.id,
+        result.players,
+        result.captain,
+        result.totalExpectedPoints,
+        formationName
+      ).catch((error) => {
+        console.error('[runOptimization] Failed to save prediction', {
+          gameweek: currentEvent.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       });
-    });
+    }
 
     return {
       ok: true,
@@ -175,6 +211,7 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
         captain: result.captain,
         expectedPoints: result.totalExpectedPoints,
         formation: formationName,
+        partial: result.partial,
         constraints,
       },
     };

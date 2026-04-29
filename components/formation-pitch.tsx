@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface FormationPitchProps {
   lineup: Player[];
-  captain: Player;
+  captain: Player | null;
   formation: string;
   expectedPoints?: Map<number, number>;
   fixtures: Fixture[];
@@ -26,6 +26,20 @@ const FORMATIONS: Record<string, { def: number; mid: number; fwd: number }> = {
 };
 
 export type DisplayMode = 'xp' | 'form';
+
+function EmptySlot() {
+  return (
+    <div className="relative w-16 sm:w-20 rounded-xl overflow-hidden border-2 border-dashed border-white/25 bg-white/5 flex flex-col items-center justify-center text-center px-1 py-2 min-h-[5.5rem] sm:min-h-[6.5rem]">
+      <svg viewBox="0 0 40 52" fill="currentColor" className="w-7 sm:w-9 opacity-20 text-white">
+        <ellipse cx="20" cy="13" rx="9" ry="10" />
+        <path d="M2 52 C2 34 10 26 20 26 C30 26 38 34 38 52 Z" />
+      </svg>
+      <p className="text-[8px] sm:text-[9px] text-white/40 uppercase tracking-widest mt-1">
+        Empty
+      </p>
+    </div>
+  );
+}
 
 export function FormationPitch({
   lineup,
@@ -49,21 +63,28 @@ export function FormationPitch({
     return parseFloat(player.form || '0') * 0.6 + parseFloat(player.points_per_game || '0') * 0.4;
   }
 
-  const renderRow = (players: Player[], count: number) => (
-    <div className="flex justify-center items-end gap-1.5 sm:gap-2 md:gap-3">
-      {players.slice(0, count).map((player) => (
-        <PlayerCard
-          key={player.id}
-          player={player}
-          isCaptain={player.id === captain.id}
-          expectedPoints={expectedPoints?.get(player.id) ?? calcXP(player)}
-          fixtures={fixtures}
-          teams={teams}
-          displayMode={displayMode}
-        />
-      ))}
-    </div>
-  );
+  const renderRow = (players: Player[], count: number) => {
+    const filled = players.slice(0, count);
+    const emptyCount = Math.max(0, count - filled.length);
+    return (
+      <div className="flex justify-center items-end gap-1.5 sm:gap-2 md:gap-3">
+        {filled.map((player) => (
+          <PlayerCard
+            key={player.id}
+            player={player}
+            isCaptain={captain != null && player.id === captain.id}
+            expectedPoints={expectedPoints?.get(player.id) ?? calcXP(player)}
+            fixtures={fixtures}
+            teams={teams}
+            displayMode={displayMode}
+          />
+        ))}
+        {Array.from({ length: emptyCount }).map((_, i) => (
+          <EmptySlot key={`empty-${i}`} />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="relative w-full mx-auto">
@@ -119,15 +140,17 @@ export function FormationPitch({
         {/* Players */}
         <div className="relative h-full flex flex-col justify-evenly items-center py-3 sm:py-5 px-2">
           <div className="flex justify-center">
-            {gk && (
+            {gk ? (
               <PlayerCard
                 player={gk}
-                isCaptain={gk.id === captain.id}
+                isCaptain={captain != null && gk.id === captain.id}
                 expectedPoints={expectedPoints?.get(gk.id) ?? calcXP(gk)}
                 fixtures={fixtures}
                 teams={teams}
                 displayMode={displayMode}
               />
+            ) : (
+              <EmptySlot />
             )}
           </div>
           {renderRow(defenders, formationStructure.def)}

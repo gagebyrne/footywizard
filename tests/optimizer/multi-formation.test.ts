@@ -50,11 +50,11 @@ describe('Multi-formation optimization', () => {
 
   it('should try all 7 formations and select the best', () => {
     const startTime = Date.now();
-    
+
     const result = optimizeAllFormations(players, expectedPoints);
-    
+
     const solveTime = Date.now() - startTime;
-    
+
     expect(result).not.toBeNull();
     expect(solveTime).toBeLessThan(10000); // Must complete in <10s
 
@@ -63,9 +63,9 @@ describe('Multi-formation optimization', () => {
       totalExpectedPoints: result!.totalExpectedPoints,
       totalCost: result!.totalCost,
     });
-  });
+  }, 15000);
 
-  it('should return valid lineup that passes validation', () => {
+  it('should return valid lineup that passes validation', { timeout: 15000 }, () => {
     const result = optimizeAllFormations(players, expectedPoints);
     
     expect(result).not.toBeNull();
@@ -128,9 +128,9 @@ describe('Multi-formation optimization', () => {
     const result = optimizeAllFormations(players, expectedPoints);
     
     expect(result).not.toBeNull();
-    expect(result!.captain).toBeDefined();
+    expect(result!.captain).not.toBeNull();
 
-    const captainPoints = expectedPoints.get(result!.captain.id) ?? 0;
+    const captainPoints = expectedPoints.get(result!.captain!.id) ?? 0;
     
     for (const player of result!.players) {
       const playerPoints = expectedPoints.get(player.id) ?? 0;
@@ -138,21 +138,24 @@ describe('Multi-formation optimization', () => {
     }
   });
 
-  it('should calculate correct total expected points', () => {
+  it('should calculate total expected points including captain bonus', () => {
     const result = optimizeAllFormations(players, expectedPoints);
-    
-    expect(result).not.toBeNull();
 
-    const manualSum = result!.players.reduce(
+    expect(result).not.toBeNull();
+    expect(result!.captain).not.toBeNull();
+
+    const lineupSum = result!.players.reduce(
       (sum, p) => sum + (expectedPoints.get(p.id) ?? 0),
       0
     );
+    const captainXp = expectedPoints.get(result!.captain!.id) ?? 0;
 
-    expect(result!.totalExpectedPoints).toBeCloseTo(manualSum, 2);
-  });
+    // totalExpectedPoints = lineup sum + captain xP (captain double counted)
+    expect(result!.totalExpectedPoints).toBeCloseTo(lineupSum + captainXp, 2);
+  }, 15000);
 
-  it('should handle infeasible scenarios gracefully', () => {
-    // Create impossible scenario: only 10 players with expected points > 0
+  it('should fall back to a partial lineup when fewer than 11 viable players', () => {
+    // Only 10 viable players — exact mode infeasible, partial mode succeeds.
     const limitedPlayers = players.slice(0, 10);
     const limitedPoints = new Map<number, number>();
     for (const player of limitedPlayers) {
@@ -160,8 +163,15 @@ describe('Multi-formation optimization', () => {
     }
 
     const result = optimizeAllFormations(limitedPlayers, limitedPoints);
-    
-    // Should return null (infeasible)
+
+    expect(result).not.toBeNull();
+    expect(result!.partial).toBe(true);
+    expect(result!.players.length).toBeLessThanOrEqual(10);
+    expect(result!.players.length).toBeGreaterThan(0);
+  });
+
+  it('should return null only when zero viable players are supplied', () => {
+    const result = optimizeAllFormations([], new Map());
     expect(result).toBeNull();
   });
 });

@@ -1,26 +1,16 @@
 import FplFetch from 'fpl-fetch';
 import type { Fixture } from '@/lib/types/fpl';
+import { applyPositionOverride } from '@/lib/optimizer/fixture-difficulty';
 
 /**
  * Fixtures endpoint
  *
  * Returns all fixtures, or fixtures for a specific gameweek if ?event= is provided.
- *
- * Query params:
- * - event: Optional gameweek number (e.g., ?event=15)
- *
- * Response: Fixture[]
+ * Difficulty values are overridden using the opponent's current league position
+ * (see lib/optimizer/fixture-difficulty.ts).
  */
 
 const fpl = new FplFetch();
-
-function positionToDifficulty(position: number): number {
-  if (position <= 4) return 5;
-  if (position <= 8) return 4;
-  if (position <= 12) return 3;
-  if (position <= 16) return 2;
-  return 1;
-}
 
 export async function GET(request: Request) {
   try {
@@ -32,15 +22,7 @@ export async function GET(request: Request) {
       fpl.getBootstrapData(),
     ]);
 
-    const difficultyByTeam = new Map<number, number>(
-      bootstrap.teams.map((t) => [t.id, positionToDifficulty(t.position)])
-    );
-
-    let fixtures: Fixture[] = fixturesRaw.map((f) => ({
-      ...f,
-      team_h_difficulty: difficultyByTeam.get(f.team_a) ?? f.team_h_difficulty,
-      team_a_difficulty: difficultyByTeam.get(f.team_h) ?? f.team_a_difficulty,
-    }));
+    let fixtures: Fixture[] = applyPositionOverride(fixturesRaw, bootstrap.teams);
 
     if (eventParam) {
       const eventId = Number(eventParam);

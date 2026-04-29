@@ -249,12 +249,13 @@ describe('solveLineup', () => {
     const result = solveLineup(TEST_PLAYERS, TEST_FORMATION, TEST_EXPECTED_POINTS);
     
     expect(result).not.toBeNull();
-    
+    expect(result!.captain).not.toBeNull();
+
     // Captain should be one of the selected players
     expect(result!.players).toContainEqual(result!.captain);
-    
+
     // Captain should have highest expected points among selected
-    const captainPoints = TEST_EXPECTED_POINTS.get(result!.captain.id) ?? 0;
+    const captainPoints = TEST_EXPECTED_POINTS.get(result!.captain!.id) ?? 0;
     for (const player of result!.players) {
       const playerPoints = TEST_EXPECTED_POINTS.get(player.id) ?? 0;
       expect(captainPoints).toBeGreaterThanOrEqual(playerPoints);

@@ -393,6 +393,45 @@ describe('calculateExpectedPoints', () => {
     });
   });
 
+  describe('double gameweeks', () => {
+    it('sums xP across both fixtures when a player has two', () => {
+      const player: Partial<Player> = {
+        id: 99,
+        web_name: 'DGWPlayer',
+        team: 1,
+        form: '6.0',
+        status: 'a',
+      };
+
+      const fixtures: Fixture[] = [
+        // Home fixture, easy
+        {
+          id: 1,
+          event: 1,
+          team_h: 1,
+          team_a: 2,
+          team_h_difficulty: 2,
+          team_a_difficulty: 4,
+        } as Fixture,
+        // Away fixture, hard
+        {
+          id: 2,
+          event: 1,
+          team_h: 3,
+          team_a: 1,
+          team_h_difficulty: 2,
+          team_a_difficulty: 5,
+        } as Fixture,
+      ];
+
+      // Fixture 1: 0.7×3 + 0.3×6 = 2.1 + 1.8 = 3.9
+      // Fixture 2: 0.7×0 + 0.3×6 = 0   + 1.8 = 1.8
+      // Total = 5.7
+      const result = calculateExpectedPoints(player as Player, fixtures, mockTeams);
+      expect(result).toBeCloseTo(5.7, 10);
+    });
+  });
+
   describe('fixture matching', () => {
     it('should correctly identify home fixture for player', () => {
       const player: Partial<Player> = {

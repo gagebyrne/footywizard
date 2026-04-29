@@ -193,11 +193,16 @@ describe('POST /api/optimize', () => {
     const response = await POST();
     const data = await response.json();
 
-    expect(response.status).toBe(422);
-    expect(data.error).toBe('NO_VALID_LINEUP');
-    expect(data.message).toContain('No valid lineup satisfies all constraints');
-    expect(data.details).toBeDefined();
-    expect(data.details.playerCount).toBe(24);
+    // With partial-mode fallback, only 2 DEFs available means no formation can
+    // be filled exactly. Solver returns the largest valid partial lineup.
+    expect(response.status).toBe(200);
+    expect(data.partial).toBe(true);
+    expect(data.lineup.length).toBeLessThan(11);
+    expect(data.lineup.length).toBeGreaterThan(0);
+    // Exactly two DEFs available — partial lineup should include both at most.
+    const defs = data.lineup.filter((p: Player) => p.element_type === 2);
+    expect(defs.length).toBeLessThanOrEqual(2);
+    expect(data.captain).not.toBeNull();
   });
 
   it('selects captain with highest expected points', async () => {
