@@ -1,15 +1,9 @@
 'use client';
 
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { StatusBadge } from './status-badge';
+import { PlayerPortrait } from './player-portrait';
+import { diffStyle, posLabel } from './chalk-player';
+import { teamColor } from '@/lib/team-colors';
 
 interface TransferTargetsProps {
   allPlayers: Player[];
@@ -19,160 +13,136 @@ interface TransferTargetsProps {
   teams: Team[];
 }
 
-// Helper to calculate expected points for a player
 function calculateExpectedPoints(player: Player): number {
   const formScore = parseFloat(player.form || '0');
   const ppg = parseFloat(player.points_per_game || '0');
   return formScore * 0.6 + ppg * 0.4;
 }
 
-// Helper to get difficulty icon
-function getDifficultyIcon(difficulty: number): string {
-  if (difficulty <= 2) return '🟢';
-  if (difficulty === 3) return '🟡';
-  return '🔴';
-}
-
-// Helper to get next fixture for a player
 function getNextFixture(
   player: Player,
   fixtures: Fixture[],
-  teams: Team[]
-): { opponent: string; difficulty: number } | null {
-  // Find the next upcoming fixture for this player's team
-  const nextFixture = fixtures
-    .filter(f => {
-      return (f.team_h === player.team || f.team_a === player.team) && !f.finished;
-    })
+  teams: Team[],
+): { opponent: string; difficulty: number; isHome: boolean } | null {
+  const next = fixtures
+    .filter((f) => (f.team_h === player.team || f.team_a === player.team) && !f.finished)
     .sort((a, b) => {
-      // Sort by event (gameweek) then kickoff time
       if (a.event !== b.event) return (a.event || 999) - (b.event || 999);
       return new Date(a.kickoff_time || '').getTime() - new Date(b.kickoff_time || '').getTime();
     })[0];
 
-  if (!nextFixture) return null;
-
-  const isHome = nextFixture.team_h === player.team;
-  const opponentId = isHome ? nextFixture.team_a : nextFixture.team_h;
-  const difficulty = isHome ? nextFixture.team_h_difficulty : nextFixture.team_a_difficulty;
-
-  const opponent = teams.find(t => t.id === opponentId);
-  return {
-    opponent: opponent?.short_name || 'TBD',
-    difficulty: difficulty || 3,
-  };
+  if (!next) return null;
+  const isHome = next.team_h === player.team;
+  const oppId = isHome ? next.team_a : next.team_h;
+  const difficulty = (isHome ? next.team_h_difficulty : next.team_a_difficulty) ?? 3;
+  const opponent = teams.find((t) => t.id === oppId)?.short_name ?? 'TBD';
+  return { opponent, difficulty, isHome };
 }
 
 export function TransferTargets({
   allPlayers,
-  lineup,
+  lineup: _lineup,
   squadIds,
   fixtures,
   teams,
 }: TransferTargetsProps) {
+  void _lineup;
   const squadIdSet = new Set(squadIds);
-  const eligiblePlayers = allPlayers.filter(p => !squadIdSet.has(p.id));
+  const eligible = allPlayers.filter((p) => !squadIdSet.has(p.id) && p.status === 'a');
 
-  // Calculate expected points for each player
-  const playersWithExpectedPoints = eligiblePlayers.map(player => ({
-    player,
-    expectedPoints: calculateExpectedPoints(player),
-  }));
-
-  // Sort by expected points descending
-  playersWithExpectedPoints.sort((a, b) => b.expectedPoints - a.expectedPoints);
-
-  // Take top 15
-  const topTargets = playersWithExpectedPoints.slice(0, 15);
+  const ranked = eligible
+    .map((player) => ({ player, xP: calculateExpectedPoints(player) }))
+    .sort((a, b) => b.xP - a.xP)
+    .slice(0, 8);
 
   console.log(
-    `[TransferTargets] Showing top 15 from ${eligiblePlayers.length} eligible players (total players: ${allPlayers.length}, squad: ${squadIds.length})`
+    `[TransferTargets] Showing top 8 from ${eligible.length} eligible players (total players: ${allPlayers.length}, squad: ${squadIds.length})`,
   );
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-sm p-6 shadow-2xl">
-      <div className="space-y-1 mb-6">
-        <h2 className="text-2xl font-bold text-white tracking-tight">
-          Transfer Targets
-        </h2>
-        <p className="text-sm text-slate-400">
-          Top 15 players not in your optimal squad
-        </p>
-      </div>
+    <div
+      className="p-5"
+      style={{ background: 'var(--paper-hi)', border: '2px solid var(--ink)' }}
+    >
+      <p className="font-serif italic text-xs" style={{ color: 'var(--ink-mute)' }}>
+        from the dugout
+      </p>
+      <h2
+        className="font-serif font-extrabold text-[28px] tracking-[-0.025em] leading-none"
+        style={{ color: 'var(--ink)' }}
+      >
+        Transfer targets
+      </h2>
+      <p
+        className="font-sans italic text-[13px] mt-2 mb-3.5 leading-[1.5]"
+        style={{ color: 'var(--ink-soft)' }}
+      >
+        The eight names worth your free transfer this week — ranked, no nonsense.
+      </p>
 
-      <div className="rounded-xl overflow-x-auto border border-white/5">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-white/10 bg-white/5 hover:bg-white/5">
-              <TableHead className="text-slate-300 font-semibold w-12">#</TableHead>
-              <TableHead className="text-slate-300 font-semibold">Name</TableHead>
-              <TableHead className="text-slate-300 font-semibold">Team</TableHead>
-              <TableHead className="text-slate-300 font-semibold">Pos</TableHead>
-              <TableHead className="text-slate-300 font-semibold text-right">xP</TableHead>
-              <TableHead className="text-slate-300 font-semibold text-right">£</TableHead>
-              <TableHead className="text-slate-300 font-semibold text-right">Form</TableHead>
-              <TableHead className="text-slate-300 font-semibold">Next</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {topTargets.map((target, index) => {
-              const { player, expectedPoints } = target;
-              const team = teams.find(t => t.id === player.team);
-              const nextFixture = getNextFixture(player, fixtures, teams);
-              
-              // Position display
-              const positionMap: Record<number, string> = {
-                1: 'GK',
-                2: 'DEF',
-                3: 'MID',
-                4: 'FWD',
-              };
-              const position = positionMap[player.element_type] || 'N/A';
+      <div>
+        {ranked.map(({ player, xP }, i) => {
+          const team = teams.find((t) => t.id === player.team);
+          const next = getNextFixture(player, fixtures, teams);
+          const ownership = parseFloat(player.selected_by_percent || '0');
+          const price = (player.now_cost ?? 0) / 10;
+          const diffColors = next ? diffStyle(next.difficulty) : null;
+          const portraitBg = teamColor(team?.short_name)?.primary ?? null;
 
-              return (
-                <TableRow
-                  key={player.id}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors"
+          return (
+            <div
+              key={player.id}
+              className="grid items-center gap-2.5 py-2.5"
+              style={{
+                gridTemplateColumns: '20px 38px 1fr auto auto',
+                borderTop: i === 0 ? '1px solid var(--ink)' : '1px solid var(--paper-lo)',
+              }}
+            >
+              <div
+                className="font-serif italic font-extrabold text-[22px]"
+                style={{ color: 'var(--ink-mute)' }}
+              >
+                {i + 1}
+              </div>
+              <PlayerPortrait player={player} size={38} background={portraitBg} />
+              <div className="min-w-0">
+                <div
+                  className="font-serif font-extrabold text-[18px] tracking-[-0.01em] leading-tight truncate"
+                  style={{ color: 'var(--ink)' }}
                 >
-                  <TableCell className="text-slate-400 font-medium">
-                    {index + 1}
-                  </TableCell>
-                  <TableCell className="text-white font-medium">
-                    <span className="inline-flex items-center gap-1.5">
-                      {player.web_name}
-                      <StatusBadge status={player.status} inline />
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-slate-300 text-sm">
-                    {team?.short_name || 'N/A'}
-                  </TableCell>
-                  <TableCell className="text-slate-300 text-sm font-mono">
-                    {position}
-                  </TableCell>
-                  <TableCell className="text-emerald-400 font-bold text-right tabular-nums">
-                    {expectedPoints.toFixed(1)}
-                  </TableCell>
-                  <TableCell className="text-amber-400 font-semibold text-right tabular-nums">
-                    {(player.now_cost / 10).toFixed(1)}
-                  </TableCell>
-                  <TableCell className="text-slate-300 text-right tabular-nums">
-                    {parseFloat(player.form || '0').toFixed(1)}
-                  </TableCell>
-                  <TableCell className="text-slate-300 text-sm">
-                    {nextFixture ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span>{getDifficultyIcon(nextFixture.difficulty)}</span>
-                        <span>{nextFixture.opponent}</span>
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">N/A</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                  {player.web_name}
+                </div>
+                <div
+                  className="font-mono text-[10px] uppercase tracking-[0.12em] mt-0.5"
+                  style={{ color: 'var(--ink-mute)' }}
+                >
+                  {team?.short_name ?? '—'} · {posLabel(player.element_type)} · £
+                  {price.toFixed(1)}m · {ownership.toFixed(1)}%
+                </div>
+              </div>
+              {next && diffColors ? (
+                <div
+                  className="font-mono text-[10px] font-bold tracking-wider"
+                  style={{
+                    background: diffColors.fill,
+                    color: diffColors.ink,
+                    padding: '4px 8px',
+                  }}
+                >
+                  {next.isHome ? 'v' : '@'} {next.opponent}
+                </div>
+              ) : (
+                <span />
+              )}
+              <div
+                className="font-serif font-extrabold text-[22px] tracking-[-0.02em] text-right min-w-[48px]"
+                style={{ color: 'var(--grass)' }}
+              >
+                {xP.toFixed(1)}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

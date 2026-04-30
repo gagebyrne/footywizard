@@ -1,8 +1,9 @@
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { getPredictions, type PredictionRecord } from '@/lib/history/predictions';
 import { calculateAggregateMetrics } from '@/lib/history/metrics';
 import { AppNav } from '@/components/app-nav';
+import { HistoryChart } from '@/components/history-chart';
+import { WizardBall } from '@/components/wizard-ball';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,46 +35,41 @@ async function fetchHistory(): Promise<HistoryResponse | null> {
   }
 }
 
-/**
- * Format metric value with one decimal precision, or 'N/A' if null
- */
-function formatMetric(value: number | null): string {
-  return value !== null ? value.toFixed(1) : 'N/A';
+function formatMetric(value: number | null, digits = 1): string {
+  return value !== null ? value.toFixed(digits) : '—';
 }
 
-/**
- * Calculate error for a prediction record
- */
 function calculateError(record: PredictionRecord): number | null {
-  if (record.totalActualPoints === undefined) {
-    return null;
-  }
+  if (record.totalActualPoints === undefined) return null;
   return Math.abs(record.totalExpectedPoints - record.totalActualPoints);
 }
 
-/**
- * History page component
- * 
- * Displays historical predictions with metrics summary and per-gameweek table.
- * Mobile-responsive: stacked metrics, horizontally scrollable table.
- */
 export default async function HistoryPage() {
   const data = await fetchHistory();
 
-  // Error state
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <AppNav />
         <div className="flex items-center justify-center py-32 px-4">
-          <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-            <h1 className="text-2xl font-bold text-red-400">Failed to load history</h1>
-            <p className="text-slate-300">Check that the API server is running and try again.</p>
+          <div
+            className="text-center space-y-3 p-8 max-w-md"
+            style={{ border: '2px solid var(--ink)', background: 'var(--paper-hi)' }}
+          >
+            <h1
+              className="font-serif font-extrabold text-2xl"
+              style={{ color: 'var(--red-rule)' }}
+            >
+              Failed to load history
+            </h1>
+            <p style={{ color: 'var(--ink-soft)' }} className="font-serif italic">
+              Check that the API server is running and try again.
+            </p>
             <Link
               href="/dashboard"
-              className="inline-block px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+              className="inline-block font-mono text-xs uppercase tracking-[0.16em] bg-[var(--ink)] text-[var(--paper)] px-4 py-2.5 hover:opacity-90 transition-opacity"
             >
-              Back to Dashboard
+              Back to the dugout →
             </Link>
           </div>
         </div>
@@ -83,22 +79,33 @@ export default async function HistoryPage() {
 
   const { predictions, metrics } = data;
 
-  // Empty state
   if (predictions.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <AppNav />
-        <div className="flex items-center justify-center py-32 px-4">
-          <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-md">
-            <h1 className="text-2xl font-bold text-white">No predictions yet</h1>
-            <p className="text-slate-300">
-              Visit the dashboard to generate your first lineup and start tracking accuracy.
+        <div className="px-6 sm:px-10 lg:px-14 py-16">
+          <div className="max-w-[820px] mx-auto text-center space-y-6">
+            <div
+              className="mx-auto inline-block"
+              style={{ ['--ball-cut' as string]: 'var(--paper)', color: 'var(--ink)' }}
+            >
+              <WizardBall size={56} />
+            </div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--ink-mute)]">
+              The receipts column · awaiting first entry
+            </p>
+            <h1 className="font-serif font-extrabold text-[64px] tracking-[-0.04em] leading-[0.92]">
+              No predictions <span className="italic font-bold text-[var(--grass)]">filed yet.</span>
+            </h1>
+            <p className="font-serif italic text-lg text-[var(--ink-soft)] max-w-[520px] mx-auto">
+              Generate your first lineup and we&apos;ll start logging the maths versus the matchday — so
+              you can hold us to it.
             </p>
             <Link
               href="/dashboard"
-              className="inline-block px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors font-medium"
+              className="inline-block font-mono text-xs uppercase tracking-[0.16em] bg-[var(--ink)] text-[var(--paper)] px-5 py-3.5 hover:opacity-90 transition-opacity"
             >
-              Go to Dashboard
+              Optimise my XI →
             </Link>
           </div>
         </div>
@@ -106,141 +113,250 @@ export default async function HistoryPage() {
     );
   }
 
-  // Sort predictions by gameweek descending (most recent first)
-  const sortedPredictions = [...predictions].sort((a, b) => b.gameweek - a.gameweek);
+  const sorted = [...predictions].sort((a, b) => b.gameweek - a.gameweek);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
       <AppNav />
-      <div className="py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white drop-shadow-2xl">
-              Prediction History
-            </h1>
-            <p className="text-sm sm:text-base text-slate-300 mt-1">
-              Algorithm accuracy across {metrics.totalGameweeks} gameweek{metrics.totalGameweeks !== 1 ? 's' : ''}
+
+      <div className="px-6 sm:px-10 lg:px-14 py-7">
+        <div className="max-w-[1200px] mx-auto space-y-8">
+          {/* Masthead */}
+          <header
+            className="py-5"
+            style={{
+              borderTop: '3px solid var(--ink)',
+              borderBottom: '1px solid var(--ink)',
+              ['--ball-cut' as string]: 'var(--paper)',
+            }}
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-mute)] mb-2.5">
+              The receipts column · {metrics.totalGameweeks} gameweek
+              {metrics.totalGameweeks !== 1 ? 's' : ''} on the books · {metrics.gameweeksWithActuals}{' '}
+              with actuals
             </p>
-          </div>
-        </div>
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <div className="flex items-end gap-3.5">
+                <WizardBall size={52} />
+                <div>
+                  <h1 className="font-serif font-extrabold text-[56px] sm:text-[64px] leading-[0.88] tracking-[-0.035em]">
+                    We mark <span className="italic font-bold text-[var(--grass)]">our own</span> homework.
+                  </h1>
+                  <p className="font-serif italic text-base text-[var(--ink-soft)] mt-1.5 max-w-[520px]">
+                    Every prediction logged. Every actual backfilled. No selective memory, no
+                    rosy-tinted recap.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </header>
 
-        {/* Metrics Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2">
-              Mean Absolute Error
-            </div>
-            <div className="text-3xl font-black text-white">
-              {formatMetric(metrics.mae)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              pts per gameweek
-            </div>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2">
-              Captain Hit Rate
-            </div>
-            <div className="text-3xl font-black text-white">
-              {formatMetric(metrics.captainHitRate)}
-              {metrics.captainHitRate !== null && <span className="text-xl ml-1">%</span>}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              captain outperformed team
-            </div>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-            <div className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2">
-              Correlation
-            </div>
-            <div className="text-3xl font-black text-white">
-              {formatMetric(metrics.correlation)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              predicted vs actual
-            </div>
-          </div>
-        </div>
-
-        {/* Predictions Table */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-white/10">
-            <h2 className="text-xl font-bold text-white">Gameweek Predictions</h2>
-            <p className="text-sm text-slate-400 mt-1">
-              {metrics.gameweeksWithActuals} of {metrics.totalGameweeks} with actual results
-            </p>
+          {/* Top-line stats */}
+          <div
+            className="grid grid-cols-1 sm:grid-cols-3"
+            style={{ borderTop: '1px solid var(--ink)', borderBottom: '1px solid var(--ink)' }}
+          >
+            <BigStat
+              eyebrow="Mean absolute error"
+              value={formatMetric(metrics.mae)}
+              suffix="pts"
+              note="lower is better — industry hovers near 7"
+              borderRight
+            />
+            <BigStat
+              eyebrow="Captain hit rate"
+              value={formatMetric(metrics.captainHitRate, 0)}
+              suffix={metrics.captainHitRate !== null ? '%' : ''}
+              note="captain outscored the median XI"
+              borderRight
+            />
+            <BigStat
+              eyebrow="Pearson r"
+              value={formatMetric(metrics.correlation, 2)}
+              note="predicted vs actual, 1.0 is perfect"
+            />
           </div>
 
-          {/* Table wrapper with horizontal scroll on mobile */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    GW
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Formation
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Predicted
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Actual
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Error
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {sortedPredictions.map((record) => {
-                  const error = calculateError(record);
-                  const hasActuals = record.totalActualPoints !== undefined;
+          {/* Chart */}
+          <HistoryChart predictions={predictions} />
 
-                  return (
-                    <tr key={record.gameweek} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                        {record.gameweek}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
-                        {record.formation || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-emerald-300">
-                        {record.totalExpectedPoints.toFixed(1)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-white">
-                        {hasActuals ? record.totalActualPoints!.toFixed(1) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono text-slate-300">
-                        {error !== null ? error.toFixed(1) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Table */}
+          <div style={{ background: 'var(--paper-hi)', border: '2px solid var(--ink)' }}>
+            <div
+              className="px-5 py-3 flex items-center justify-between"
+              style={{ borderBottom: '1px solid var(--ink)' }}
+            >
+              <p className="font-serif italic text-xs" style={{ color: 'var(--ink-mute)' }}>
+                from the archives
+              </p>
+              <h2 className="font-serif font-extrabold text-[22px] tracking-[-0.02em]">
+                Gameweek ledger
+              </h2>
+              <p
+                className="font-mono text-[10px] uppercase tracking-[0.14em] hidden sm:block"
+                style={{ color: 'var(--ink-mute)' }}
+              >
+                {metrics.gameweeksWithActuals}/{metrics.totalGameweeks} settled
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--ink)' }}>
+                    {['GW', 'Formation', 'Predicted', 'Actual', 'Error', 'Verdict'].map(
+                      (h, i) => (
+                        <th
+                          key={h}
+                          className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold"
+                          style={{
+                            color: 'var(--ink-mute)',
+                            textAlign: i >= 2 && i <= 4 ? 'right' : 'left',
+                            padding: '10px 16px',
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((record, i) => {
+                    const err = calculateError(record);
+                    const has = record.totalActualPoints !== undefined;
+                    const verdict = verdictFor(err);
+                    return (
+                      <tr
+                        key={record.gameweek}
+                        style={{
+                          borderBottom:
+                            i === sorted.length - 1
+                              ? 'none'
+                              : '1px solid var(--paper-lo)',
+                        }}
+                      >
+                        <td
+                          className="font-serif font-extrabold text-lg"
+                          style={{
+                            color: 'var(--ink)',
+                            padding: '12px 16px',
+                            letterSpacing: '-0.01em',
+                          }}
+                        >
+                          GW{record.gameweek}
+                        </td>
+                        <td
+                          className="font-mono text-xs"
+                          style={{ color: 'var(--ink-soft)', padding: '12px 16px' }}
+                        >
+                          {record.formation || '—'}
+                        </td>
+                        <td
+                          className="font-serif font-extrabold text-base"
+                          style={{
+                            color: 'var(--ink)',
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                          }}
+                        >
+                          {record.totalExpectedPoints.toFixed(1)}
+                        </td>
+                        <td
+                          className="font-serif font-extrabold text-base"
+                          style={{
+                            color: has ? 'var(--grass)' : 'var(--ink-mute)',
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                          }}
+                        >
+                          {has ? record.totalActualPoints!.toFixed(1) : '—'}
+                        </td>
+                        <td
+                          className="font-mono text-sm"
+                          style={{
+                            color: 'var(--ink)',
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                          }}
+                        >
+                          {err !== null ? err.toFixed(1) : '—'}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          {verdict && (
+                            <span
+                              className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 inline-block"
+                              style={{
+                                background: verdict.fill,
+                                color: verdict.ink,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {verdict.label}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* Footer note */}
-        <div className="text-center text-sm text-slate-400">
-          <p>
-            Actuals are backfilled automatically after each gameweek finishes.
-            <br />
-            Captain points are counted twice in actual totals (consistent with FPL rules).
+          <p
+            className="font-serif italic text-sm text-center"
+            style={{ color: 'var(--ink-mute)' }}
+          >
+            Actuals are backfilled the moment the gameweek finishes. Captain points double up,
+            consistent with FPL rules.
           </p>
         </div>
       </div>
-      </div>
     </div>
   );
+}
+
+function BigStat({
+  eyebrow,
+  value,
+  suffix,
+  note,
+  borderRight,
+}: {
+  eyebrow: string;
+  value: string;
+  suffix?: string;
+  note: string;
+  borderRight?: boolean;
+}) {
+  return (
+    <div
+      className="px-5 sm:px-7 py-6 sm:py-7"
+      style={{ borderRight: borderRight ? '1px solid var(--paper-lo)' : 'none' }}
+    >
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)]">
+        {eyebrow}
+      </p>
+      <p className="font-serif font-extrabold text-[44px] sm:text-[52px] tracking-[-0.035em] leading-none mt-2 text-[var(--ink)]">
+        {value}
+        {suffix && (
+          <span className="text-[0.4em] font-medium ml-1.5 text-[var(--ink-soft)]">{suffix}</span>
+        )}
+      </p>
+      <p
+        className="font-serif italic text-[13px] mt-2 leading-tight"
+        style={{ color: 'var(--ink-soft)' }}
+      >
+        {note}
+      </p>
+    </div>
+  );
+}
+
+function verdictFor(err: number | null): { label: string; fill: string; ink: string } | null {
+  if (err === null) return null;
+  if (err <= 5) return { label: 'On the money', fill: 'var(--grass)', ink: 'var(--captain-ink)' };
+  if (err <= 10) return { label: 'Close enough', fill: '#C9A227', ink: '#16140F' };
+  return { label: 'Talked rubbish', fill: 'var(--red-rule)', ink: 'var(--captain-ink)' };
 }

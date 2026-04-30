@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import FplFetch from 'fpl-fetch';
 import { AppNav } from '@/components/app-nav';
 import { TeamBuilder } from '@/components/team-builder';
+import { WizardBall } from '@/components/wizard-ball';
 import { createClient } from '@/lib/supabase/server';
 import type { Player, Team } from '@/lib/types/fpl';
 
@@ -23,23 +24,50 @@ export default async function TeamPage() {
   const teams: Team[] = bootstrapData.teams ?? [];
   const initialSquadIds: number[] = squadData.data?.player_ids ?? [];
 
+  const isExisting = initialSquadIds.length >= 15;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] flex flex-col">
       <AppNav />
-      <div className="py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <header className="mb-6">
-            <h1 className="text-2xl font-black text-white">
-              {initialSquadIds.length >= 15 ? 'My Squad' : 'Build Your Squad'}
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              {initialSquadIds.length >= 15
-                ? 'Manage your 15-player squad for the season.'
-                : 'Pick 2 GK · 5 DEF · 5 MID · 3 FWD to get started.'}
+
+      {/* Masthead */}
+      <header
+        className="px-6 sm:px-10 lg:px-14 py-5"
+        style={{
+          borderBottom: '1px solid var(--ink)',
+          ['--ball-cut' as string]: 'var(--paper)',
+        }}
+      >
+        <div className="max-w-[1400px] mx-auto">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--ink-mute)] mb-2">
+            The team sheet · 2 GK · 5 DEF · 5 MID · 3 FWD · max 3 per club
+          </p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex items-end gap-3">
+              <WizardBall size={42} />
+              <h1 className="font-serif font-extrabold text-[40px] sm:text-[52px] leading-[0.9] tracking-[-0.035em]">
+                {isExisting ? (
+                  <>
+                    Manage <span className="italic font-bold text-[var(--grass)]">your fifteen.</span>
+                  </>
+                ) : (
+                  <>
+                    Pick <span className="italic font-bold text-[var(--grass)]">the side.</span>
+                  </>
+                )}
+              </h1>
+            </div>
+            <p className="font-serif italic text-[var(--ink-soft)] max-w-[440px]">
+              {isExisting
+                ? 'Sub the dead wood, hold the form picks. Save when the fifteen reads right.'
+                : 'Fifteen names, £100m, no patriotic favouritism. Get it right and the maths takes over.'}
             </p>
-          </header>
-          <TeamBuilder allPlayers={allPlayers} teams={teams} initialSquadIds={initialSquadIds} />
+          </div>
         </div>
+      </header>
+
+      <div className="flex-1 min-h-0">
+        <TeamBuilder allPlayers={allPlayers} teams={teams} initialSquadIds={initialSquadIds} />
       </div>
     </div>
   );

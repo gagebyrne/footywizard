@@ -56,132 +56,105 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       const age = formatCacheAge(cached.timestamp);
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 py-8 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto space-y-8">
-            {/* Staleness warning banner */}
+        <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] py-8 px-6 sm:px-10 lg:px-14">
+          <div className="max-w-[1200px] mx-auto space-y-7">
             <div
-              className={`${
-                isStale ? 'bg-amber-500/20 border-amber-500/40' : 'bg-yellow-500/20 border-yellow-500/40'
-              } backdrop-blur-sm border rounded-xl p-4 space-y-3`}
+              className="px-4 py-3 flex items-start gap-3"
+              style={{
+                border: `1px solid var(--ink)`,
+                background: 'var(--paper-hi)',
+              }}
               role="alert"
               aria-live="polite"
             >
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-6 h-6 text-amber-300 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
+              <div className="flex-1">
+                <p className="font-serif font-extrabold text-lg">
+                  Showing cached lineup from {age}
+                </p>
+                <p
+                  className="font-mono text-[11px] uppercase tracking-[0.16em] mt-1"
+                  style={{ color: 'var(--ink-soft)' }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                <div className="flex-1 space-y-2">
-                  <p className="text-white font-medium">
-                    Showing cached lineup from {age}
+                  Unable to fetch latest optimisation. Press retry to try again.
+                </p>
+                {isStale && (
+                  <p
+                    className="font-mono text-[11px] uppercase tracking-[0.16em] mt-1"
+                    style={{ color: 'var(--red-rule)' }}
+                  >
+                    Cache is more than 24 hours old
                   </p>
-                  <p className="text-slate-200 text-sm">
-                    Unable to fetch latest optimization. Click Retry to attempt again.
-                  </p>
-                  {isStale && (
-                    <p className="text-amber-200 text-xs font-medium">
-                      ⚠ Cache is more than 24 hours old
-                    </p>
-                  )}
-                </div>
-                <Button
-                  onClick={this.handleRetry}
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/10 hover:bg-white/20 border-white/20 text-white flex-shrink-0"
-                >
-                  Retry
-                </Button>
+                )}
               </div>
+              <Button
+                onClick={this.handleRetry}
+                variant="outline"
+                size="sm"
+                className="font-mono text-[10px] uppercase tracking-[0.16em] border border-[var(--ink)] text-[var(--ink)] bg-transparent hover:bg-[var(--paper)]"
+              >
+                Retry
+              </Button>
             </div>
 
-            {/* Cached lineup display */}
-            <div className="text-center space-y-2">
-              <h1 className="text-5xl font-black tracking-tight text-white drop-shadow-2xl">
+            <div className="text-center space-y-1">
+              <p className="font-serif font-extrabold text-5xl tracking-[-0.03em] text-[var(--ink)]">
                 {cached.expectedPoints.toFixed(1)}
-                <span className="text-2xl ml-2 font-medium text-emerald-300">pts</span>
-              </h1>
-              <p className="text-lg font-medium text-slate-300">
-                Expected Points • {cached.formation}
+                <span className="text-2xl ml-2 font-medium text-[var(--ink-soft)]">pts</span>
               </p>
-              <p className="text-xs text-slate-400 italic">
-                Cached {age}
+              <p
+                className="font-mono text-[11px] uppercase tracking-[0.18em]"
+                style={{ color: 'var(--ink-mute)' }}
+              >
+                Expected points · {cached.formation} · cached {age}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <FormationPitch
-                  lineup={cached.lineup}
-                  captain={cached.captain}
-                  formation={cached.formation}
-                  fixtures={this.props.fixtures}
-                  teams={this.props.teams}
-                />
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                  <p className="text-slate-300 text-sm">
-                    Transfer targets and fixture outlook unavailable while offline.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <FormationPitch
+              lineup={cached.lineup}
+              captain={cached.captain}
+              formation={cached.formation}
+              fixtures={this.props.fixtures}
+              teams={this.props.teams}
+            />
           </div>
         </div>
       );
     }
 
-    // No cached data available - show error UI
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 px-4">
-        <div className="text-center space-y-6 p-8 max-w-md rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-          <svg
-            className="w-16 h-16 text-red-400 mx-auto"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
+      <div className="min-h-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)] px-4">
+        <div
+          className="text-center space-y-5 p-8 max-w-md"
+          style={{ border: '2px solid var(--ink)', background: 'var(--paper-hi)' }}
+        >
+          <h1
+            className="font-serif font-extrabold text-2xl"
+            style={{ color: 'var(--red-rule)' }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-white">Unable to generate lineup</h1>
-            <p className="text-slate-300">
-              The optimization service is currently unavailable. Please try refreshing in a few minutes.
-            </p>
-          </div>
-
+            Unable to generate lineup
+          </h1>
+          <p style={{ color: 'var(--ink-soft)' }} className="font-serif italic">
+            The optimisation service is currently unavailable. Please try refreshing in a few
+            minutes.
+          </p>
           <Button
             onClick={this.handleRetry}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] bg-[var(--ink)] text-[var(--paper)] hover:opacity-90"
           >
             Retry
           </Button>
-
           {this.state.error && (
-            <details className="text-left mt-4">
-              <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
+            <details className="text-left mt-3">
+              <summary
+                className="font-mono text-[10px] uppercase tracking-[0.14em] cursor-pointer"
+                style={{ color: 'var(--ink-mute)' }}
+              >
                 Technical details
               </summary>
-              <pre className="mt-2 text-xs text-red-300 overflow-auto p-2 bg-black/20 rounded">
+              <pre
+                className="mt-2 text-xs overflow-auto p-2"
+                style={{ background: 'var(--paper)', color: 'var(--red-rule)' }}
+              >
                 {this.state.error.message}
               </pre>
             </details>
