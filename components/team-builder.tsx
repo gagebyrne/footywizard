@@ -4,17 +4,16 @@ import { useState, useMemo, useTransition } from 'react';
 import type { Player, Team } from '@/lib/types/fpl';
 import { cn, normalizeStr } from '@/lib/utils';
 import { saveSquad } from '@/app/team/actions';
-import { StatusBadge } from './status-badge';
-
-// ── Constants ────────────────────────────────────────────────────────────────
+import { PlayerPortrait } from './player-portrait';
+import { teamColor } from '@/lib/team-colors';
 
 const POS_NAMES: Record<number, string> = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
 const POS_LIMITS: Record<number, number> = { 1: 2, 2: 5, 3: 5, 4: 3 };
-const POS_COLORS: Record<number, { badge: string; row: string }> = {
-  1: { badge: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', row: 'border-l-yellow-500' },
-  2: { badge: 'bg-blue-500/20 text-blue-300 border-blue-500/40', row: 'border-l-blue-500' },
-  3: { badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', row: 'border-l-emerald-500' },
-  4: { badge: 'bg-red-500/20 text-red-300 border-red-500/40', row: 'border-l-red-500' },
+const POS_INK: Record<number, string> = {
+  1: '#C9A227', // keeper amber
+  2: '#1B458F', // defender ink-blue
+  3: 'var(--grass)',
+  4: 'var(--red-rule)',
 };
 const MAX_PER_TEAM = 3;
 const TOTAL_PLAYERS = 15;
@@ -30,32 +29,57 @@ const PRICE_OPTIONS = [
   { label: 'Max £12.0m', value: 120 },
 ];
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface TeamBuilderProps {
   allPlayers: Player[];
   teams: Team[];
   initialSquadIds: number[];
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function calcXP(p: Player) {
+  return parseFloat(p.form || '0') * 0.6 + parseFloat(p.points_per_game || '0') * 0.4;
+}
+
+function StatusDot({ status }: { status: string }) {
+  if (status === 'a') return null;
+  const meta =
+    status === 'd'
+      ? { label: 'D', title: 'Doubtful', color: '#C9A227' }
+      : status === 'i'
+        ? { label: 'I', title: 'Injured', color: 'var(--red-rule)' }
+        : { label: 'U', title: 'Unavailable', color: 'var(--ink-mute)' };
+  return (
+    <span
+      className="inline-flex items-center justify-center font-mono text-[9px] font-bold tracking-wider"
+      style={{
+        background: meta.color,
+        color: 'var(--captain-ink)',
+        width: 16,
+        height: 16,
+        borderRadius: 0,
+      }}
+      title={meta.title}
+    >
+      {meta.label}
+    </span>
+  );
+}
 
 export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderProps) {
   const playerById = useMemo(() => new Map(allPlayers.map((p) => [p.id, p])), [allPlayers]);
   const teamShortName = useMemo(
     () => new Map(teams.map((t) => [t.id, t.short_name])),
-    [teams]
+    [teams],
   );
   const sortedTeamNames = useMemo(
     () => [...new Set(teams.map((t) => t.short_name))].sort(),
-    [teams]
+    [teams],
   );
 
   const [squad, setSquad] = useState<Player[]>(() =>
     initialSquadIds.flatMap((id) => {
       const p = playerById.get(id);
       return p ? [p] : [];
-    })
+    }),
   );
   const [search, setSearch] = useState('');
   const [posFilter, setPosFilter] = useState<number>(0);
@@ -66,28 +90,20 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
   const [mobileTab, setMobileTab] = useState<'pick' | 'squad'>('pick');
   const [isPending, startTransition] = useTransition();
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-
   const squadIds = useMemo(() => new Set(squad.map((p) => p.id)), [squad]);
-
   const posCounts = useMemo(() => {
     const c: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
     for (const p of squad) c[p.element_type] = (c[p.element_type] ?? 0) + 1;
     return c;
   }, [squad]);
-
   const teamCounts = useMemo(() => {
     const c: Record<number, number> = {};
     for (const p of squad) c[p.team] = (c[p.team] ?? 0) + 1;
     return c;
   }, [squad]);
-
-  const totalCost = useMemo(
-    () => squad.reduce((sum, p) => sum + p.now_cost, 0),
-    [squad]
-  );
-
+  const totalCost = useMemo(() => squad.reduce((s, p) => s + p.now_cost, 0), [squad]);
   const isComplete = squad.length === TOTAL_PLAYERS;
+  const remaining = 1000 - totalCost; // £100m budget in 0.1m units
 
   const filteredPlayers = useMemo(() => {
     const q = normalizeStr(search);
@@ -102,31 +118,37 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
           !q ||
           normalizeStr(p.web_name).includes(q) ||
           normalizeStr((p as unknown as { second_name?: string }).second_name ?? '').includes(q) ||
-          normalizeStr((p as unknown as { first_name?: string }).first_name ?? '').includes(q)
+          normalizeStr((p as unknown as { first_name?: string }).first_name ?? '').includes(q),
       )
-      .sort((a, b) => {
-        const xp = (p: Player) =>
-          parseFloat(p.form || '0') * 0.6 +
-          parseFloat(p.points_per_game || '0') * 0.4;
-        return xp(b) - xp(a);
-      })
+      .sort((a, b) => calcXP(b) - calcXP(a))
       .slice(0, 60);
-  }, [allPlayers, squadIds, posFilter, teamFilter, maxPrice, availableOnly, search, teamShortName]);
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  }, [
+    allPlayers,
+    squadIds,
+    posFilter,
+    teamFilter,
+    maxPrice,
+    availableOnly,
+    search,
+    teamShortName,
+  ]);
 
   function blockReason(player: Player): string | null {
     if (squadIds.has(player.id)) return 'Already in squad';
     if (squad.length >= TOTAL_PLAYERS) return 'Squad is full';
     const pc = posCounts[player.element_type] ?? 0;
     if (pc >= POS_LIMITS[player.element_type]) return `${POS_NAMES[player.element_type]} slots full`;
-    if ((teamCounts[player.team] ?? 0) >= MAX_PER_TEAM) return 'Max 3 per team';
+    if ((teamCounts[player.team] ?? 0) >= MAX_PER_TEAM) return 'Max 3 per club';
+    if (totalCost + player.now_cost > 1000) return 'Over budget';
     return null;
   }
 
   function addPlayer(player: Player) {
     const reason = blockReason(player);
-    if (reason) { setError(reason); return; }
+    if (reason) {
+      setError(reason);
+      return;
+    }
     setSquad((prev) => [...prev, player]);
     setError(null);
   }
@@ -137,7 +159,10 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
   }
 
   function handleSave() {
-    if (!isComplete) { setError('Select all 15 players before saving.'); return; }
+    if (!isComplete) {
+      setError('Pick all 15 players before saving the team sheet.');
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await saveSquad(squad.map((p) => p.id));
@@ -145,149 +170,218 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
     });
   }
 
-  // ── Sub-renders ────────────────────────────────────────────────────────────
+  // ── Subviews ──────────────────────────────────────────────────────────────
 
   const PlayerListPanel = (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Search */}
-      <div className="p-4 border-b border-white/10 space-y-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search players…"
-          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-colors"
-        />
+    <div className="flex flex-col h-full min-h-0 bg-[var(--paper)]">
+      {/* Filters */}
+      <div
+        className="p-4 sm:p-5 space-y-3"
+        style={{ borderBottom: '1px solid var(--ink)' }}
+      >
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)] mb-1.5">
+            From the open market
+          </p>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search players…"
+            className="w-full font-sans text-sm px-3 py-2.5 outline-none bg-[var(--paper-hi)] text-[var(--ink)] placeholder-[var(--ink-mute)] focus:bg-[var(--paper)] transition-colors"
+            style={{ border: '1.5px solid var(--ink)' }}
+          />
+        </div>
 
         {/* Position pills */}
         <div className="flex gap-1.5 flex-wrap">
-          {([0, 1, 2, 3, 4] as const).map((pos) => (
-            <button
-              key={pos}
-              onClick={() => setPosFilter(pos)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-colors',
-                posFilter === pos
-                  ? pos === 0
-                    ? 'bg-white/20 border-white/40 text-white'
-                    : POS_COLORS[pos].badge + ' border-opacity-100'
-                  : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-              )}
-            >
-              {pos === 0 ? 'All' : POS_NAMES[pos]}
-            </button>
-          ))}
+          {([0, 1, 2, 3, 4] as const).map((pos) => {
+            const active = posFilter === pos;
+            const ink = pos === 0 ? 'var(--ink)' : POS_INK[pos];
+            return (
+              <button
+                key={pos}
+                onClick={() => setPosFilter(pos)}
+                className="font-mono text-[10px] uppercase tracking-[0.16em] px-2.5 py-1 transition-colors cursor-pointer"
+                style={{
+                  border: `1px solid ${active ? ink : 'var(--paper-lo)'}`,
+                  background: active ? ink : 'transparent',
+                  color: active
+                    ? pos === 0
+                      ? 'var(--paper)'
+                      : 'var(--captain-ink)'
+                    : 'var(--ink-soft)',
+                }}
+              >
+                {pos === 0 ? 'All' : POS_NAMES[pos]}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Team + Price dropdowns */}
+        {/* Team + Price */}
         <div className="flex gap-2">
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
-            className="flex-1 rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="flex-1 font-mono text-xs px-2.5 py-2 bg-[var(--paper-hi)] text-[var(--ink)] outline-none cursor-pointer"
+            style={{ border: '1.5px solid var(--ink)' }}
           >
-            <option value="" className="bg-slate-800 text-slate-100">All teams</option>
+            <option value="">All clubs</option>
             {sortedTeamNames.map((name) => (
-              <option key={name} value={name} className="bg-slate-800 text-slate-100">{name}</option>
+              <option key={name} value={name}>
+                {name}
+              </option>
             ))}
           </select>
           <select
             value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
-            className="flex-1 rounded-xl bg-slate-800 border border-white/10 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="flex-1 font-mono text-xs px-2.5 py-2 bg-[var(--paper-hi)] text-[var(--ink)] outline-none cursor-pointer"
+            style={{ border: '1.5px solid var(--ink)' }}
           >
             {PRICE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} className="bg-slate-800 text-slate-100">{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
 
         <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
-          <div
+          <span
             role="switch"
             aria-checked={availableOnly}
             onClick={() => setAvailableOnly((v) => !v)}
-            className={cn(
-              'relative w-8 h-4 rounded-full border transition-colors',
-              availableOnly
-                ? 'bg-emerald-500/40 border-emerald-500/60'
-                : 'bg-white/5 border-white/10'
-            )}
+            className="relative inline-block transition-colors"
+            style={{
+              width: 30,
+              height: 16,
+              border: '1px solid var(--ink)',
+              background: availableOnly ? 'var(--ink)' : 'transparent',
+            }}
           >
             <span
-              className={cn(
-                'absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform',
-                availableOnly ? 'bg-emerald-400 translate-x-4' : 'bg-slate-500'
-              )}
+              className="absolute top-[1px] block transition-transform"
+              style={{
+                left: 1,
+                width: 12,
+                height: 12,
+                background: availableOnly ? 'var(--grass)' : 'var(--ink-mute)',
+                transform: availableOnly ? 'translateX(14px)' : 'translateX(0)',
+              }}
             />
-          </div>
-          <span className="text-xs text-slate-300">Available only</span>
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ink-soft)]">
+            Fit only
+          </span>
         </label>
       </div>
 
-      {/* Player list */}
+      {/* List */}
       <div className="overflow-y-auto flex-1">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-slate-900/95 backdrop-blur-sm">
-            <tr className="border-b border-white/10">
-              <th className="px-4 py-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Player</th>
-              <th className="px-2 py-2 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Price</th>
-              <th className="px-2 py-2 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">xP</th>
-              <th className="w-10" />
+        <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+          <thead
+            className="sticky top-0 z-10"
+            style={{ background: 'var(--paper)' }}
+          >
+            <tr style={{ borderBottom: '1px solid var(--ink)' }}>
+              <th
+                className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold text-left"
+                style={{ color: 'var(--ink-mute)', padding: '8px 16px' }}
+              >
+                Player
+              </th>
+              <th
+                className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold text-right"
+                style={{ color: 'var(--ink-mute)', padding: '8px 8px' }}
+              >
+                Price
+              </th>
+              <th
+                className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold text-right"
+                style={{ color: 'var(--ink-mute)', padding: '8px 8px' }}
+              >
+                xP
+              </th>
+              <th style={{ width: 48 }} />
             </tr>
           </thead>
           <tbody>
             {filteredPlayers.map((player) => {
               const reason = blockReason(player);
-              const xp = (
-                parseFloat(player.form || '0') * 0.6 +
-                parseFloat(player.points_per_game || '0') * 0.4
-              ).toFixed(1);
-              const colors = POS_COLORS[player.element_type];
-
+              const xp = calcXP(player).toFixed(1);
+              const tShort = teamShortName.get(player.team) ?? null;
+              const portraitBg = teamColor(tShort)?.primary ?? null;
               return (
                 <tr
                   key={player.id}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                  style={{ borderBottom: '1px solid var(--paper-lo)' }}
+                  className="hover:bg-[var(--paper-hi)] transition-colors"
                 >
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
+                  <td style={{ padding: '8px 16px' }}>
+                    <div className="flex items-center gap-2.5">
                       <span
-                        className={cn(
-                          'inline-block w-7 text-center rounded text-[10px] font-bold border py-0.5',
-                          colors.badge
-                        )}
+                        className="inline-block font-mono text-[9px] font-bold tracking-wider px-1.5 py-0.5"
+                        style={{
+                          background: POS_INK[player.element_type],
+                          color: 'var(--captain-ink)',
+                          minWidth: 28,
+                          textAlign: 'center',
+                        }}
                       >
                         {POS_NAMES[player.element_type]}
                       </span>
-                      <div>
-                        <p className="font-medium text-white text-xs leading-tight flex items-center gap-1">
-                          {player.web_name}
-                          <StatusBadge status={player.status} inline />
+                      <PlayerPortrait player={player} size={28} background={portraitBg} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="font-serif font-extrabold text-sm leading-tight truncate"
+                            style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
+                          >
+                            {player.web_name}
+                          </span>
+                          <StatusDot status={player.status} />
+                        </div>
+                        <p
+                          className="font-mono text-[10px] uppercase tracking-[0.12em]"
+                          style={{ color: 'var(--ink-mute)' }}
+                        >
+                          {tShort ?? '—'}
                         </p>
-                        <p className="text-[10px] text-slate-400">{teamShortName.get(player.team)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-2 py-2.5 text-right text-xs text-amber-400 font-semibold tabular-nums">
+                  <td
+                    className="font-mono text-xs text-right tabular-nums"
+                    style={{ color: 'var(--ink)', padding: '8px 8px' }}
+                  >
                     £{(player.now_cost / 10).toFixed(1)}m
                   </td>
-                  <td className="px-2 py-2.5 text-right text-xs text-emerald-400 tabular-nums">
+                  <td
+                    className="font-serif font-extrabold text-sm text-right tabular-nums"
+                    style={{ color: 'var(--grass)', padding: '8px 8px' }}
+                  >
                     {xp}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td style={{ padding: '8px 12px' }}>
                     <button
                       onClick={() => addPlayer(player)}
                       disabled={reason !== null}
                       title={reason ?? 'Add to squad'}
                       className={cn(
-                        'w-7 h-7 rounded-full text-sm font-bold transition-all',
+                        'font-mono text-xs uppercase tracking-[0.14em] px-2 py-1 transition-colors',
                         reason === null
-                          ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/40 border border-emerald-500/40'
-                          : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
+                          ? 'cursor-pointer hover:opacity-90'
+                          : 'cursor-not-allowed opacity-40',
                       )}
+                      style={{
+                        border: '1px solid var(--ink)',
+                        background: reason === null ? 'var(--ink)' : 'transparent',
+                        color: reason === null ? 'var(--paper)' : 'var(--ink-mute)',
+                      }}
                     >
-                      +
+                      Sign
                     </button>
                   </td>
                 </tr>
@@ -295,8 +389,12 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
             })}
             {filteredPlayers.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">
-                  No players match your filters.
+                <td
+                  colSpan={4}
+                  className="font-serif italic text-center"
+                  style={{ color: 'var(--ink-mute)', padding: '36px 16px' }}
+                >
+                  No players match those filters. Loosen up a notch.
                 </td>
               </tr>
             )}
@@ -307,81 +405,152 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
   );
 
   const SquadPanel = (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Summary bar */}
-      <div className="p-4 border-b border-white/10 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-white">
-            Your Squad{' '}
-            <span className={cn('font-black', isComplete ? 'text-emerald-400' : 'text-slate-400')}>
-              {squad.length}/{TOTAL_PLAYERS}
-            </span>
-          </span>
-          <span className="text-xs text-amber-400 font-semibold">
-            £{(totalCost / 10).toFixed(1)}m
-          </span>
-        </div>
-        {/* Position counts */}
-        <div className="flex gap-3 text-xs">
-          {([1, 2, 3, 4] as const).map((pos) => (
-            <span
-              key={pos}
-              className={cn(
-                'font-semibold',
-                (posCounts[pos] ?? 0) >= POS_LIMITS[pos] ? 'text-emerald-400' : 'text-slate-400'
-              )}
+    <div className="flex flex-col h-full min-h-0 bg-[var(--paper-hi)]">
+      {/* Summary */}
+      <div
+        className="p-4 sm:p-5"
+        style={{ borderBottom: '1px solid var(--ink)' }}
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)] mb-2">
+          The team sheet
+        </p>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div className="font-serif font-extrabold text-[36px] leading-none tracking-[-0.025em]">
+            {squad.length}
+            <span className="text-[var(--ink-mute)] mx-1.5">/</span>
+            {TOTAL_PLAYERS}
+          </div>
+          <div className="text-right">
+            <p
+              className="font-mono text-[10px] uppercase tracking-[0.16em]"
+              style={{ color: 'var(--ink-mute)' }}
             >
-              {POS_NAMES[pos]} {posCounts[pos] ?? 0}/{POS_LIMITS[pos]}
-            </span>
-          ))}
+              Spend / Remaining
+            </p>
+            <p
+              className="font-serif font-extrabold text-lg tracking-[-0.02em]"
+              style={{ color: 'var(--ink)' }}
+            >
+              £{(totalCost / 10).toFixed(1)}m
+              <span
+                className="font-mono text-[12px] font-medium ml-2"
+                style={{ color: remaining < 0 ? 'var(--red-rule)' : 'var(--ink-soft)' }}
+              >
+                · £{(remaining / 10).toFixed(1)}m left
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div
+          className="mt-3 grid grid-cols-4"
+          style={{ borderTop: '1px solid var(--paper-lo)' }}
+        >
+          {([1, 2, 3, 4] as const).map((pos, i) => {
+            const filled = posCounts[pos] ?? 0;
+            const limit = POS_LIMITS[pos];
+            const done = filled >= limit;
+            return (
+              <div
+                key={pos}
+                className="px-2 pt-2.5"
+                style={{ borderRight: i < 3 ? '1px solid var(--paper-lo)' : 'none' }}
+              >
+                <p
+                  className="font-mono text-[10px] uppercase tracking-[0.16em]"
+                  style={{ color: POS_INK[pos] }}
+                >
+                  {POS_NAMES[pos]}
+                </p>
+                <p
+                  className="font-serif font-extrabold text-base mt-0.5"
+                  style={{ color: done ? 'var(--grass)' : 'var(--ink)' }}
+                >
+                  {filled}
+                  <span className="text-[var(--ink-mute)] mx-0.5">/</span>
+                  {limit}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Slot groups */}
-      <div className="overflow-y-auto flex-1 p-4 space-y-4">
+      {/* Slots */}
+      <div className="overflow-y-auto flex-1 p-4 sm:p-5 space-y-5">
         {([1, 2, 3, 4] as const).map((pos) => {
           const posPlayers = squad.filter((p) => p.element_type === pos);
           const limit = POS_LIMITS[pos];
-          const colors = POS_COLORS[pos];
-
           return (
             <div key={pos}>
-              <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1.5', colors.badge.split(' ')[1])}>
-                {POS_NAMES[pos]}
+              <p
+                className="font-mono text-[10px] uppercase tracking-[0.18em] mb-2"
+                style={{ color: POS_INK[pos] }}
+              >
+                {POS_NAMES[pos]} — {posPlayers.length}/{limit}
               </p>
               <div className="space-y-1.5">
-                {posPlayers.map((player) => (
-                  <div
-                    key={player.id}
-                    className={cn(
-                      'flex items-center justify-between rounded-lg bg-white/5 border-l-2 px-3 py-2',
-                      colors.row
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">{player.web_name}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {teamShortName.get(player.team)} · £{(player.now_cost / 10).toFixed(1)}m
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removePlayer(player.id)}
-                      className="ml-2 w-6 h-6 rounded-full bg-white/5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 border border-white/10 hover:border-red-500/40 text-xs font-bold transition-colors flex-shrink-0"
-                      title="Remove"
+                {posPlayers.map((player) => {
+                  const tShort = teamShortName.get(player.team) ?? null;
+                  const portraitBg = teamColor(tShort)?.primary ?? null;
+                  return (
+                    <div
+                      key={player.id}
+                      className="flex items-center justify-between px-3 py-2 bg-[var(--paper)]"
+                      style={{
+                        border: '1px solid var(--paper-lo)',
+                        borderLeft: `3px solid ${POS_INK[pos]}`,
+                      }}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                {/* Empty slots */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <PlayerPortrait
+                          player={player}
+                          size={28}
+                          background={portraitBg}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="font-serif font-extrabold text-sm truncate"
+                              style={{ color: 'var(--ink)', letterSpacing: '-0.01em' }}
+                            >
+                              {player.web_name}
+                            </span>
+                            <StatusDot status={player.status} />
+                          </div>
+                          <p
+                            className="font-mono text-[10px] uppercase tracking-[0.12em]"
+                            style={{ color: 'var(--ink-mute)' }}
+                          >
+                            {tShort ?? '—'} · £{(player.now_cost / 10).toFixed(1)}m
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removePlayer(player.id)}
+                        className="font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 cursor-pointer transition-colors hover:bg-[var(--red-rule)] hover:text-[var(--captain-ink)]"
+                        style={{
+                          border: '1px solid var(--ink-mute)',
+                          color: 'var(--ink-soft)',
+                          background: 'transparent',
+                        }}
+                        title="Drop"
+                      >
+                        Drop
+                      </button>
+                    </div>
+                  );
+                })}
                 {Array.from({ length: limit - posPlayers.length }).map((_, i) => (
                   <div
-                    key={`empty-${i}`}
-                    className="flex items-center rounded-lg border border-dashed border-white/10 px-3 py-2 text-xs text-slate-600"
+                    key={`empty-${pos}-${i}`}
+                    className="font-mono text-[10px] uppercase tracking-[0.14em] px-3 py-2.5"
+                    style={{
+                      border: '1px dashed var(--paper-lo)',
+                      color: 'var(--ink-mute)',
+                    }}
                   >
-                    + Add {POS_NAMES[pos].toLowerCase()}
+                    + Sign a {POS_NAMES[pos].toLowerCase()}
                   </div>
                 ))}
               </div>
@@ -390,69 +559,79 @@ export function TeamBuilder({ allPlayers, teams, initialSquadIds }: TeamBuilderP
         })}
       </div>
 
-      {/* Error + Save */}
-      <div className="p-4 border-t border-white/10 space-y-3">
+      {/* Save bar */}
+      <div className="p-4 sm:p-5 space-y-3" style={{ borderTop: '1px solid var(--ink)' }}>
         {error && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          <p
+            className="font-mono text-[11px] uppercase tracking-[0.14em] px-3 py-2"
+            style={{
+              border: '1px solid var(--red-rule)',
+              color: 'var(--red-rule)',
+            }}
+          >
             {error}
           </p>
         )}
         <button
           onClick={handleSave}
           disabled={!isComplete || isPending}
-          className={cn(
-            'w-full py-3 rounded-xl font-bold text-sm transition-all',
-            isComplete && !isPending
-              ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20'
-              : 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
-          )}
+          className="w-full font-mono text-xs uppercase tracking-[0.18em] px-4 py-3.5 transition-opacity"
+          style={{
+            background: isComplete && !isPending ? 'var(--ink)' : 'transparent',
+            color: isComplete && !isPending ? 'var(--paper)' : 'var(--ink-mute)',
+            border: '1.5px solid var(--ink)',
+            cursor: isComplete && !isPending ? 'pointer' : 'not-allowed',
+            opacity: isComplete && !isPending ? 1 : 0.65,
+          }}
         >
-          {isPending ? 'Saving…' : isComplete ? 'Save Squad' : `${TOTAL_PLAYERS - squad.length} players remaining`}
+          {isPending
+            ? 'Filing the team sheet…'
+            : isComplete
+              ? 'File the team sheet →'
+              : `${TOTAL_PLAYERS - squad.length} more to sign`}
         </button>
       </div>
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-[calc(100vh-57px)] flex flex-col">
-
+    <div className="h-full flex flex-col">
       {/* Mobile tab bar */}
-      <div className="lg:hidden flex border-b border-white/10">
+      <div
+        className="lg:hidden flex"
+        style={{ borderBottom: '1px solid var(--ink)' }}
+      >
         {(['pick', 'squad'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setMobileTab(tab)}
-            className={cn(
-              'flex-1 py-3 text-sm font-semibold transition-colors',
-              mobileTab === tab
-                ? 'text-white border-b-2 border-emerald-400'
-                : 'text-slate-400 hover:text-white'
-            )}
+            className="flex-1 font-mono text-[11px] uppercase tracking-[0.16em] py-3 cursor-pointer transition-colors"
+            style={{
+              background: mobileTab === tab ? 'var(--ink)' : 'transparent',
+              color: mobileTab === tab ? 'var(--paper)' : 'var(--ink-soft)',
+            }}
           >
-            {tab === 'pick' ? 'Pick Players' : `My Squad (${squad.length}/${TOTAL_PLAYERS})`}
+            {tab === 'pick' ? 'Open market' : `Team sheet (${squad.length}/${TOTAL_PLAYERS})`}
           </button>
         ))}
       </div>
 
-      {/* Desktop: two columns. Mobile: one panel at a time. */}
       <div className="flex-1 min-h-0 flex">
-        {/* Left: player list */}
         <div
           className={cn(
-            'lg:w-1/2 border-r border-white/10 flex flex-col min-h-0',
-            mobileTab === 'pick' ? 'flex w-full' : 'hidden lg:flex'
+            'lg:w-1/2 flex-col min-h-0',
+            mobileTab === 'pick' ? 'flex w-full' : 'hidden lg:flex',
           )}
+          style={{ borderRight: '1px solid var(--ink)' }}
         >
           {PlayerListPanel}
         </div>
-
-        {/* Right: squad */}
         <div
           className={cn(
-            'lg:w-1/2 flex flex-col min-h-0',
-            mobileTab === 'squad' ? 'flex w-full' : 'hidden lg:flex'
+            'lg:w-1/2 flex-col min-h-0',
+            mobileTab === 'squad' ? 'flex w-full' : 'hidden lg:flex',
           )}
         >
           {SquadPanel}
