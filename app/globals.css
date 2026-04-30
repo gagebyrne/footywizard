@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Broadsheet palette tokens.
+   Swap themes by setting [data-theme="dark"] on <html>.
+   ============================================================ */
+
+:root,
+[data-theme="light"] {
+  --paper: #f2ebdd;
+  --paper-hi: #faf5e8;
+  --paper-lo: #e8dfc8;
+  --ink: #16140f;
+  --ink-soft: #3b362a;
+  --ink-mute: #7a7261;
+  --grass: #2f6e3b;
+  --chalk: #f2ebdd;
+  --red: #b0301f;
+  --captain-ink: #f2ebdd;
+}
+
+[data-theme="dark"] {
+  --paper: #13110d;
+  --paper-hi: #1b1813;
+  --paper-lo: #2a2620;
+  --ink: #efe6d2;
+  --ink-soft: #c8bfaa;
+  --ink-mute: #7e7665;
+  --grass: #5ba46a;
+  --chalk: #efe6d2;
+  --red: #d86c56;
+  --captain-ink: #13110d;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --color-paper: var(--paper);
+  --color-paper-hi: var(--paper-hi);
+  --color-paper-lo: var(--paper-lo);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-mute: var(--ink-mute);
+  --color-grass: var(--grass);
+  --color-chalk: var(--chalk);
+  --color-red-rule: var(--red);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: #0f172a;
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.font-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
 }

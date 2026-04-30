@@ -2,13 +2,15 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import FplFetch from 'fpl-fetch';
 import type { OptimizeResponse } from '@/lib/types/optimizer';
-import type { Fixture, Team, Player } from '@/lib/types/fpl';
+import type { Fixture, Team, Player, Event } from '@/lib/types/fpl';
 import { FormationPitch } from '@/components/formation-pitch';
 import { TransferTargets } from '@/components/transfer-targets';
 import { FixtureOutlook } from '@/components/fixture-outlook';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { CacheHandler } from '@/components/cache-handler';
 import { AppNav } from '@/components/app-nav';
+import { BroadsheetMasthead } from '@/components/broadsheet-masthead';
+import { VerdictCard } from '@/components/verdict-card';
 import { runOptimization } from '@/lib/optimizer/run-optimization';
 import { createClient } from '@/lib/supabase/server';
 
@@ -34,13 +36,32 @@ async function fetchFixtures(): Promise<Fixture[]> {
   }
 }
 
-async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[] }> {
+async function fetchBootstrapData(): Promise<{ teams: Team[]; players: Player[]; events: Event[] }> {
   try {
     const data = await fpl.getBootstrapData();
-    return { teams: data.teams || [], players: data.elements || [] };
+    return {
+      teams: data.teams || [],
+      players: data.elements || [],
+      events: data.events || [],
+    };
   } catch (error) {
     console.error('[dashboard/page.tsx] Failed to fetch bootstrap data:', error);
-    return { teams: [], players: [] };
+    return { teams: [], players: [], events: [] };
+  }
+}
+
+function formatDeadline(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('en-GB', {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return null;
   }
 }
 
@@ -54,24 +75,22 @@ async function SecondaryData({
   squadIds: number[];
 }) {
   const { teams, players } = await fetchBootstrapData();
-  const squadPlayers = players.filter(p => squadIds.includes(p.id));
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <TransferTargets allPlayers={players} lineup={lineup} squadIds={squadIds} fixtures={fixtures} teams={teams} />
-      <FixtureOutlook players={squadPlayers} fixtures={fixtures} teams={teams} />
-    </div>
-  );
+  const squadPlayers = players.filter((p) => squadIds.includes(p.id));
+  void lineup;
+  return <FixtureOutlook players={squadPlayers} fixtures={fixtures} teams={teams} />;
 }
 
 function SecondaryFallback() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-        <p className="text-slate-300 text-sm animate-pulse">Loading transfer targets…</p>
-      </div>
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-        <p className="text-slate-300 text-sm animate-pulse">Loading fixture outlook…</p>
-      </div>
+    <div
+      className="px-4 py-8 font-serif italic"
+      style={{
+        background: 'var(--paper-hi)',
+        border: '2px solid var(--ink)',
+        color: 'var(--ink-mute)',
+      }}
+    >
+      Loading fixture outlook…
     </div>
   );
 }
@@ -81,7 +100,6 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Redirect to team setup if no squad saved yet
   const { data: squadData } = await supabase
     .from('user_squads')
     .select('player_ids')
@@ -97,17 +115,26 @@ export default async function DashboardPage() {
     fetchBootstrapData(),
   ]);
 
-  const { teams, players: allPlayers } = bootstrapData;
+  const { teams, players: allPlayers, events } = bootstrapData;
+  const nextEvent = events.find((e) => e.is_next) ?? events.find((e) => e.is_current) ?? null;
 
   if (!data) {
     return (
       <ErrorBoundary fixtures={fixtures} teams={teams}>
-        <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+        <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
           <AppNav />
           <div className="flex items-center justify-center py-32 px-4">
-            <div className="text-center space-y-4 p-8 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-              <h1 className="text-2xl font-bold text-red-400">Failed to load lineup</h1>
-              <p className="text-slate-300">
+            <div
+              className="text-center space-y-3 p-8"
+              style={{ border: '2px solid var(--ink)', background: 'var(--paper-hi)' }}
+            >
+              <h1
+                className="font-serif font-extrabold text-2xl"
+                style={{ color: 'var(--red-rule)' }}
+              >
+                Failed to load lineup
+              </h1>
+              <p style={{ color: 'var(--ink-soft)' }}>
                 Check that the API server is running or wait for cached data to load.
               </p>
             </div>
@@ -117,71 +144,126 @@ export default async function DashboardPage() {
     );
   }
 
-  const lineupIds = new Set(data.lineup.map(p => p.id));
-  const benchPlayers = allPlayers.filter(p => playerIds.includes(p.id) && !lineupIds.has(p.id));
+  const lineupIds = new Set(data.lineup.map((p) => p.id));
+  const benchPlayers = allPlayers.filter(
+    (p) => playerIds.includes(p.id) && !lineupIds.has(p.id),
+  );
+
+  // Find the worst pick on the bench list to flag in the Verdict copy
+  const doubtful =
+    data.lineup.find((p) => p.status === 'd' || p.status === 'i') ?? null;
+
+  // Net change: improvement vs the user's current XI (rough proxy: top-11 squad xP)
+  const sortedSquadXp = [...allPlayers.filter((p) => playerIds.includes(p.id))]
+    .map((p) => parseFloat(p.form || '0') * 0.6 + parseFloat(p.points_per_game || '0') * 0.4)
+    .sort((a, b) => b - a)
+    .slice(0, 11)
+    .reduce((s, n) => s + n, 0);
+  const delta = data.expectedPoints - sortedSquadXp;
 
   return (
     <ErrorBoundary fixtures={fixtures} teams={teams}>
       <CacheHandler data={data} />
 
-      <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900">
+      <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
         <AppNav />
 
-        <div className="py-10 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto space-y-10">
-
-            <header className="text-center space-y-4">
-              <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-                <div className="text-center">
-                  <div className="text-4xl sm:text-5xl font-black text-white leading-none">
-                    {data.expectedPoints.toFixed(1)}
-                    <span className="text-xl sm:text-2xl font-medium text-emerald-300 ml-1.5">pts</span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">Expected Points</p>
-                </div>
-                <div className="hidden sm:block w-px h-10 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-white">{data.formation}</div>
-                  <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">Formation</p>
-                </div>
-                <div className="hidden sm:block w-px h-10 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-white">
-                    £{(data.constraints.budget.used / 10).toFixed(1)}m
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1 tracking-wide uppercase">
-                    Squad Value
-                  </p>
-                </div>
-              </div>
-            </header>
+        <div className="px-6 sm:px-10 lg:px-14 py-7">
+          <div className="max-w-[1200px] mx-auto space-y-8">
+            <BroadsheetMasthead
+              data={data}
+              gameweek={nextEvent?.id}
+              deadline={formatDeadline(nextEvent?.deadline_time)}
+            />
 
             {data.partial && (
-              <div className="max-w-xl mx-auto rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                <strong className="font-semibold">Partial lineup.</strong>{' '}
-                Some pitch slots are empty because squad players are unavailable
-                (injured, doubtful, suspended) or have no fixture in this gameweek.
+              <div
+                className="px-4 py-3 font-serif italic text-sm"
+                style={{
+                  border: '1px solid var(--red-rule)',
+                  background: 'var(--paper-hi)',
+                  color: 'var(--ink)',
+                }}
+              >
+                <strong className="font-extrabold not-italic">Partial lineup.</strong> Some pitch
+                slots are empty because squad players are unavailable (injured, doubtful, suspended)
+                or have no fixture in this gameweek.
               </div>
             )}
 
-            <div className="max-w-xl mx-auto">
-              <FormationPitch
-                lineup={data.lineup}
-                captain={data.captain}
-                formation={data.formation}
-                fixtures={fixtures}
-                teams={teams}
-                bench={benchPlayers}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8">
+              {/* Main column */}
+              <div>
+                <SectionHeader
+                  eyebrow="The starting XI"
+                  title="What the maths picked"
+                  subtitle={
+                    <>A {data.formation} side projected to bag{' '}
+                      {data.expectedPoints.toFixed(1)} points. Captain&apos;s armband on{' '}
+                      <span className="font-extrabold not-italic">
+                        {data.captain?.web_name ?? 'tbc'}
+                      </span>{' '}
+                      — the only sensible read.
+                    </>
+                  }
+                />
+                <div className="mt-5">
+                  <FormationPitch
+                    lineup={data.lineup}
+                    captain={data.captain}
+                    formation={data.formation}
+                    fixtures={fixtures}
+                    teams={teams}
+                    bench={benchPlayers}
+                  />
+                </div>
+              </div>
+
+              {/* Sidebar: Verdict above Transfer Targets */}
+              <div className="flex flex-col gap-5">
+                <VerdictCard captain={data.captain} delta={delta} doubtful={doubtful} />
+                <TransferTargets
+                  allPlayers={allPlayers}
+                  lineup={data.lineup}
+                  squadIds={playerIds}
+                  fixtures={fixtures}
+                  teams={teams}
+                />
+              </div>
             </div>
 
             <Suspense fallback={<SecondaryFallback />}>
               <SecondaryData lineup={data.lineup} fixtures={fixtures} squadIds={playerIds} />
             </Suspense>
-
           </div>
         </div>
       </div>
     </ErrorBoundary>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--ink-mute)]">
+        {eyebrow}
+      </p>
+      <h2 className="font-serif font-extrabold text-[40px] sm:text-[44px] leading-none tracking-[-0.03em] text-[var(--ink)] mt-1.5">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="font-serif italic text-base mt-2 leading-[1.4] max-w-[540px] text-[var(--ink-soft)]">
+          {subtitle}
+        </p>
+      )}
+    </div>
   );
 }

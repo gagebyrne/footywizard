@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
-import { PlayerCard } from './player-card';
-import { cn } from '@/lib/utils';
+import { ChalkPlayer } from './chalk-player';
+import { ChalkBenchRow } from './chalk-bench';
 
 interface FormationPitchProps {
   lineup: Player[];
@@ -25,19 +25,20 @@ const FORMATIONS: Record<string, { def: number; mid: number; fwd: number }> = {
   '5-4-1': { def: 5, mid: 4, fwd: 1 },
 };
 
-export type DisplayMode = 'xp' | 'form';
+function calcXP(player: Player) {
+  return parseFloat(player.form || '0') * 0.6 + parseFloat(player.points_per_game || '0') * 0.4;
+}
 
 function EmptySlot() {
   return (
-    <div className="relative w-16 sm:w-20 rounded-xl overflow-hidden border-2 border-dashed border-white/25 bg-white/5 flex flex-col items-center justify-center text-center px-1 py-2 min-h-[5.5rem] sm:min-h-[6.5rem]">
-      <svg viewBox="0 0 40 52" fill="currentColor" className="w-7 sm:w-9 opacity-20 text-white">
-        <ellipse cx="20" cy="13" rx="9" ry="10" />
-        <path d="M2 52 C2 34 10 26 20 26 C30 26 38 34 38 52 Z" />
-      </svg>
-      <p className="text-[8px] sm:text-[9px] text-white/40 uppercase tracking-widest mt-1">
-        Empty
-      </p>
-    </div>
+    <div
+      className="w-14 h-14 sm:w-16 sm:h-16 rounded-full"
+      style={{
+        border: '2px dashed rgba(242,235,221,0.5)',
+        background: 'rgba(0,0,0,0.18)',
+      }}
+      aria-label="Empty slot"
+    />
   );
 }
 
@@ -50,7 +51,7 @@ export function FormationPitch({
   teams,
   bench,
 }: FormationPitchProps) {
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('xp');
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   const gk = lineup.filter((p) => p.element_type === 1)[0];
   const defenders = lineup.filter((p) => p.element_type === 2);
@@ -59,27 +60,24 @@ export function FormationPitch({
 
   const formationStructure = FORMATIONS[formation] || { def: 4, mid: 4, fwd: 2 };
 
-  function calcXP(player: Player) {
-    return parseFloat(player.form || '0') * 0.6 + parseFloat(player.points_per_game || '0') * 0.4;
-  }
-
   const renderRow = (players: Player[], count: number) => {
     const filled = players.slice(0, count);
-    const emptyCount = Math.max(0, count - filled.length);
+    const empties = Math.max(0, count - filled.length);
     return (
-      <div className="flex justify-center items-end gap-1.5 sm:gap-2 md:gap-3">
-        {filled.map((player) => (
-          <PlayerCard
-            key={player.id}
-            player={player}
-            isCaptain={captain != null && player.id === captain.id}
-            expectedPoints={expectedPoints?.get(player.id) ?? calcXP(player)}
+      <div className="flex justify-evenly items-center gap-2 px-2">
+        {filled.map((p) => (
+          <ChalkPlayer
+            key={p.id}
+            player={p}
+            isCaptain={captain != null && p.id === captain.id}
+            xp={expectedPoints?.get(p.id) ?? calcXP(p)}
             fixtures={fixtures}
             teams={teams}
-            displayMode={displayMode}
+            hovered={hoveredId === p.id}
+            onHover={setHoveredId}
           />
         ))}
-        {Array.from({ length: emptyCount }).map((_, i) => (
+        {Array.from({ length: empties }).map((_, i) => (
           <EmptySlot key={`empty-${i}`} />
         ))}
       </div>
@@ -87,103 +85,94 @@ export function FormationPitch({
   };
 
   return (
-    <div className="relative w-full mx-auto">
-      {/* Display mode toggle */}
-      <div className="mb-4 flex justify-center">
-        <div className="inline-flex items-center rounded-full bg-black/30 backdrop-blur-sm border border-white/10 p-1 gap-1">
-          <button
-            onClick={() => setDisplayMode('xp')}
-            className={cn(
-              'px-4 py-1.5 rounded-full text-sm font-semibold transition-all',
-              displayMode === 'xp'
-                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                : 'text-slate-300 hover:text-white'
-            )}
-          >
-            Expected Pts
-          </button>
-          <button
-            onClick={() => setDisplayMode('form')}
-            className={cn(
-              'px-4 py-1.5 rounded-full text-sm font-semibold transition-all',
-              displayMode === 'form'
-                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                : 'text-slate-300 hover:text-white'
-            )}
-          >
-            Form Score
-          </button>
-        </div>
-      </div>
-
-      {/* Football Pitch */}
+    <div className="relative w-full">
+      {/* Chalk pitch */}
       <div
-        className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20"
+        className="relative overflow-hidden"
         style={{
           aspectRatio: '3/4',
-          background: 'linear-gradient(180deg, #1a4d2e 0%, #0f3a20 50%, #1a4d2e 100%)',
+          background:
+            'radial-gradient(ellipse at center top, #3F8A4D 0%, #2F6E3B 50%, #1A3F22 100%)',
+          border: '2px solid var(--ink)',
         }}
       >
-        {/* Pitch Lines */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-white" />
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
-            style={{ width: '15%', aspectRatio: '1' }}
-          />
-          <div className="absolute left-1/4 right-1/4 top-0 h-[12%] border-2 border-white border-t-0" />
-          <div className="absolute left-1/4 right-1/4 bottom-0 h-[12%] border-2 border-white border-b-0" />
-          <div className="absolute left-[35%] right-[35%] top-0 h-[6%] border-2 border-white border-t-0" />
-          <div className="absolute left-[35%] right-[35%] bottom-0 h-[6%] border-2 border-white border-b-0" />
+        {/* Faint vertical mowing pattern */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px)',
+          }}
+        />
+
+        {/* Chalk lines */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          style={{ opacity: 0.55 }}
+          viewBox="0 0 300 400"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <filter id="chalk-fx">
+              <feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" />
+              <feDisplacementMap in="SourceGraphic" scale="1.5" />
+            </filter>
+          </defs>
+          <g stroke="#F2EBDD" strokeWidth="1.5" fill="none" filter="url(#chalk-fx)">
+            <rect x="6" y="6" width="288" height="388" />
+            <line x1="6" y1="200" x2="294" y2="200" />
+            <circle cx="150" cy="200" r="40" />
+            <circle cx="150" cy="200" r="2" fill="#F2EBDD" />
+            <rect x="60" y="6" width="180" height="60" />
+            <rect x="105" y="6" width="90" height="22" />
+            <rect x="60" y="334" width="180" height="60" />
+            <rect x="105" y="372" width="90" height="22" />
+            <path d="M 110 66 Q 150 96 190 66" />
+            <path d="M 110 334 Q 150 304 190 334" />
+          </g>
+        </svg>
+
+        {/* Pitch label corners */}
+        <div
+          className="absolute top-3 left-4 font-serif italic text-sm tracking-wide"
+          style={{ color: 'rgba(242,235,221,0.5)' }}
+        >
+          the form book · {formation}
+        </div>
+        <div
+          className="absolute bottom-3 right-4 font-mono text-[10px] tracking-[0.18em]"
+          style={{ color: 'rgba(242,235,221,0.5)' }}
+        >
+          XI · {formation}
         </div>
 
         {/* Players */}
-        <div className="relative h-full flex flex-col justify-evenly items-center py-3 sm:py-5 px-2">
+        <div className="relative h-full flex flex-col justify-evenly py-6 sm:py-8">
+          {/* FWD on top of pitch (mirror of design) */}
+          {renderRow(forwards, formationStructure.fwd)}
+          {renderRow(midfielders, formationStructure.mid)}
+          {renderRow(defenders, formationStructure.def)}
           <div className="flex justify-center">
             {gk ? (
-              <PlayerCard
+              <ChalkPlayer
                 player={gk}
                 isCaptain={captain != null && gk.id === captain.id}
-                expectedPoints={expectedPoints?.get(gk.id) ?? calcXP(gk)}
+                xp={expectedPoints?.get(gk.id) ?? calcXP(gk)}
                 fixtures={fixtures}
                 teams={teams}
-                displayMode={displayMode}
+                hovered={hoveredId === gk.id}
+                onHover={setHoveredId}
               />
             ) : (
               <EmptySlot />
             )}
           </div>
-          {renderRow(defenders, formationStructure.def)}
-          {renderRow(midfielders, formationStructure.mid)}
-          {renderRow(forwards, formationStructure.fwd)}
         </div>
       </div>
 
-      <div className="mt-3 text-center">
-        <p className="text-xs font-semibold text-slate-400 tracking-wide uppercase">
-          Formation <span className="text-white ml-1">{formation}</span>
-        </p>
-      </div>
-
+      {/* Bench */}
       {bench && bench.length > 0 && (
-        <div className="mt-4 rounded-2xl bg-slate-800/60 backdrop-blur-sm border border-white/10 px-3 py-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest text-center mb-3">
-            Bench
-          </p>
-          <div className="flex justify-center gap-2 sm:gap-3">
-            {bench.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                isCaptain={false}
-                expectedPoints={calcXP(player)}
-                fixtures={fixtures}
-                teams={teams}
-                displayMode={displayMode}
-              />
-            ))}
-          </div>
-        </div>
+        <ChalkBenchRow bench={bench} fixtures={fixtures} teams={teams} />
       )}
     </div>
   );
