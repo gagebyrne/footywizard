@@ -1,10 +1,10 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { signIn, signUp, type AuthState } from './actions';
-import { cn } from '@/lib/utils';
+import { WizardBall } from '@/components/wizard-ball';
+import { ThemeToggle } from '@/components/theme-provider';
 
 const initialState: AuthState = {};
 
@@ -18,129 +18,273 @@ export default function LoginPage() {
   const action = isSignIn ? signInAction : signUpAction;
   const pending = isSignIn ? signInPending : signUpPending;
 
+  const eyebrow = isSignIn ? 'Members’ gate' : 'New subscriber';
+  const subhead = isSignIn
+    ? 'Your XI is on the team-sheet — sign in and pick the side.'
+    : 'Five minutes, one email, and the maths starts working for you.';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-950 via-teal-900 to-slate-900 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-
-        {/* Logo */}
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <Image src="/wizard-icon.png" alt="FootyWizard" width={48} height={48} unoptimized />
-            <span className="text-3xl font-black text-white">FootyWizard</span>
-          </Link>
-          <p className="text-emerald-300 italic">football made magic</p>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] flex flex-col">
+      {/* Masthead */}
+      <div
+        className="px-6 sm:px-10 lg:px-14 py-4 flex items-center justify-between"
+        style={{
+          borderTop: '3px solid var(--ink)',
+          borderBottom: '1px solid var(--ink)',
+          ['--ball-cut' as string]: 'var(--paper)',
+        }}
+      >
+        <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+          <WizardBall size={28} />
+          <span className="font-serif font-extrabold text-xl tracking-[-0.025em]">FootyWizard</span>
+        </Link>
+        <div className="flex items-center gap-4">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--ink-mute)] hidden sm:block">
+            Vol. XXI · The Saturday Edition
+          </p>
+          <ThemeToggle />
         </div>
+      </div>
 
-        {/* Card */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6">
+      {/* Body */}
+      <main className="flex-1 px-6 sm:px-10 lg:px-14 py-12 sm:py-16">
+        <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16 items-center">
+          {/* Left column — editorial */}
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--ink-mute)]">
+              {eyebrow} · {isSignIn ? 'kickoff in 3' : 'the form book awaits'}
+            </p>
+            <h1 className="font-serif font-extrabold leading-[0.92] tracking-[-0.045em] mt-3 text-[56px] sm:text-[72px] lg:text-[84px]">
+              {isSignIn ? (
+                <>
+                  Step into <br />
+                  the <span className="italic font-bold text-[var(--grass)]">dugout.</span>
+                </>
+              ) : (
+                <>
+                  Pull up <br />
+                  a <span className="italic font-bold text-[var(--grass)]">chair.</span>
+                </>
+              )}
+            </h1>
+            <p className="font-serif italic text-lg sm:text-xl text-[var(--ink-soft)] mt-5 leading-[1.45] max-w-[460px]">
+              {subhead}
+            </p>
 
-          {/* Mode toggle */}
-          <div className="flex rounded-xl bg-black/20 p-1 gap-1">
-            <button
-              onClick={() => setMode('signin')}
-              className={cn(
-                'flex-1 py-2 rounded-lg text-sm font-semibold transition-all',
-                isSignIn
-                  ? 'bg-emerald-500 text-white shadow-lg'
-                  : 'text-slate-300 hover:text-white'
-              )}
+            <div
+              className="mt-8 pt-5 grid grid-cols-3 gap-5 max-w-[460px]"
+              style={{ borderTop: '1px solid var(--paper-lo)' }}
             >
-              Sign In
-            </button>
-            <button
-              onClick={() => setMode('signup')}
-              className={cn(
-                'flex-1 py-2 rounded-lg text-sm font-semibold transition-all',
-                !isSignIn
-                  ? 'bg-emerald-500 text-white shadow-lg'
-                  : 'text-slate-300 hover:text-white'
-              )}
-            >
-              Create Account
-            </button>
+              <Vital label="MAE" value="4.6" suffix="pts" />
+              <Vital label="Captain hits" value="74" suffix="%" />
+              <Vital label="GWs solved" value="21" />
+            </div>
           </div>
 
-          {/* Success message (sign up only) */}
-          {signUpState?.message && (
-            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 text-sm text-emerald-300">
-              {signUpState.message}
+          {/* Right column — auth card */}
+          <div
+            className="p-6 sm:p-7 bg-[var(--paper-hi)]"
+            style={{ border: '2px solid var(--ink)' }}
+          >
+            {/* Mode toggle — newspaper-style segmented */}
+            <div
+              className="flex"
+              style={{
+                border: '1px solid var(--ink)',
+                background: 'var(--paper)',
+              }}
+              role="tablist"
+            >
+              <ModeTab active={isSignIn} onClick={() => setMode('signin')} label="Sign in" />
+              <ModeTab active={!isSignIn} onClick={() => setMode('signup')} label="New account" />
             </div>
-          )}
 
-          {/* Error message */}
-          {state?.error && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
-              {state.error}
-            </div>
-          )}
+            {/* Banner messages */}
+            {signUpState?.message && (
+              <p
+                className="mt-4 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em]"
+                style={{
+                  border: '1px solid var(--grass)',
+                  color: 'var(--grass)',
+                  background: 'transparent',
+                }}
+                role="status"
+              >
+                {signUpState.message}
+              </p>
+            )}
+            {state?.error && (
+              <p
+                className="mt-4 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em]"
+                style={{
+                  border: '1px solid var(--red-rule)',
+                  color: 'var(--red-rule)',
+                }}
+                role="alert"
+              >
+                {state.error}
+              </p>
+            )}
 
-          {/* Form */}
-          <form action={action} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-slate-300">
-                Email
-              </label>
-              <input
+            <form action={action} className="mt-5 space-y-4">
+              <Field
                 id="email"
                 name="email"
                 type="email"
+                label="Email"
                 autoComplete="email"
-                required
                 placeholder="you@example.com"
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-slate-300">
-                Password
-              </label>
-              <input
+              <Field
                 id="password"
                 name="password"
                 type="password"
+                label="Password"
                 autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                required
                 placeholder={isSignIn ? '••••••••' : 'At least 8 characters'}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
               />
-            </div>
-
-            {!isSignIn && (
-              <div className="space-y-1.5">
-                <label htmlFor="confirm" className="text-sm font-medium text-slate-300">
-                  Confirm Password
-                </label>
-                <input
+              {!isSignIn && (
+                <Field
                   id="confirm"
                   name="confirm"
                   type="password"
+                  label="Confirm password"
                   autoComplete="new-password"
-                  required
                   placeholder="••••••••"
-                  className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
                 />
-              </div>
-            )}
+              )}
 
-            <button
-              type="submit"
-              disabled={pending}
-              className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-lg shadow-emerald-500/20 mt-2"
+              <button
+                type="submit"
+                disabled={pending}
+                className="w-full font-mono text-xs uppercase tracking-[0.16em] px-5 py-3.5 mt-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 transition-opacity hover:opacity-90"
+                style={{
+                  background: 'var(--ink)',
+                  color: 'var(--paper)',
+                  border: '1px solid var(--ink)',
+                }}
+              >
+                {pending
+                  ? isSignIn
+                    ? 'Signing in…'
+                    : 'Creating account…'
+                  : isSignIn
+                    ? 'Take your seat →'
+                    : 'Pick up the team-sheet →'}
+              </button>
+            </form>
+
+            <p
+              className="mt-5 pt-4 font-serif italic text-[13px] text-center text-[var(--ink-soft)]"
+              style={{ borderTop: '1px solid var(--paper-lo)' }}
             >
-              {pending
-                ? (isSignIn ? 'Signing in…' : 'Creating account…')
-                : (isSignIn ? 'Sign In' : 'Create Account')}
-            </button>
-          </form>
+              {isSignIn ? "Don't have an account? " : 'Already a regular? '}
+              <button
+                type="button"
+                onClick={() => setMode(isSignIn ? 'signup' : 'signin')}
+                className="font-serif italic font-extrabold text-[var(--ink)] hover:text-[var(--grass)] transition-colors underline-offset-2 underline"
+              >
+                {isSignIn ? 'Subscribe' : 'Sign in instead'}
+              </button>
+            </p>
+          </div>
         </div>
+      </main>
 
-        <p className="text-center text-xs text-slate-500">
-          <Link href="/" className="hover:text-slate-300 transition-colors">
-            ← Back to home
-          </Link>
+      {/* Footer */}
+      <footer
+        className="px-6 sm:px-10 lg:px-14 py-4 flex items-center justify-between flex-wrap gap-3"
+        style={{ borderTop: '1px solid var(--ink)' }}
+      >
+        <Link
+          href="/"
+          className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors"
+        >
+          ← Back to the front page
+        </Link>
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)]">
+          Football made magical
         </p>
-      </div>
+      </footer>
+    </div>
+  );
+}
+
+function ModeTab({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className="flex-1 font-mono text-[11px] uppercase tracking-[0.16em] py-2.5 cursor-pointer transition-colors"
+      style={{
+        background: active ? 'var(--ink)' : 'transparent',
+        color: active ? 'var(--paper)' : 'var(--ink-soft)',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Field({
+  id,
+  name,
+  type,
+  label,
+  autoComplete,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  type: string;
+  label: string;
+  autoComplete: string;
+  placeholder: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label
+        htmlFor={id}
+        className="font-mono text-[10px] uppercase tracking-[0.18em] block text-[var(--ink-mute)]"
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        required
+        placeholder={placeholder}
+        className="w-full font-sans text-sm px-3 py-2.5 outline-none transition-colors bg-[var(--paper)] text-[var(--ink)] placeholder-[var(--ink-mute)] focus:bg-[var(--paper-hi)]"
+        style={{ border: '1.5px solid var(--ink)' }}
+      />
+    </div>
+  );
+}
+
+function Vital({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
+  return (
+    <div>
+      <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--ink-mute)]">
+        {label}
+      </p>
+      <p className="font-serif font-extrabold text-[26px] tracking-[-0.02em] leading-none mt-1 text-[var(--ink)]">
+        {value}
+        {suffix && (
+          <span className="text-[0.45em] font-medium text-[var(--ink-soft)] ml-0.5">{suffix}</span>
+        )}
+      </p>
     </div>
   );
 }
