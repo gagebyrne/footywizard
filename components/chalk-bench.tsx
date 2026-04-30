@@ -3,6 +3,7 @@
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { PlayerPortrait } from './player-portrait';
 import { posLabel } from './chalk-player';
+import { teamColor } from '@/lib/team-colors';
 
 interface ChalkBenchRowProps {
   bench: Player[];
@@ -35,13 +36,14 @@ export function ChalkBenchRow({ bench, teams }: ChalkBenchRowProps) {
           const team = teams.find((t) => t.id === p.team);
           const price = (p.now_cost ?? 0) / 10;
           const xp = calcXP(p);
+          const portraitBg = teamColor(team?.short_name)?.primary ?? null;
           return (
             <div
               key={p.id}
               className="flex-1 min-w-[180px] flex items-center gap-2.5 pl-3"
               style={{ borderLeft: '1px solid var(--paper-lo)' }}
             >
-              <PlayerPortrait player={p} size={36} />
+              <PlayerPortrait player={p} size={36} background={portraitBg} />
               <div className="min-w-0">
                 <div
                   className="font-mono text-[9px] uppercase tracking-[0.14em]"

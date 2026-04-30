@@ -191,7 +191,7 @@ export default async function DashboardPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Main column */}
               <div>
                 <SectionHeader

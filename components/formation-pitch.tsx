@@ -85,12 +85,12 @@ export function FormationPitch({
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full mx-auto" style={{ maxWidth: 480 }}>
       {/* Chalk pitch */}
       <div
         className="relative overflow-hidden"
         style={{
-          aspectRatio: '3/4',
+          aspectRatio: '4/5',
           background:
             'radial-gradient(ellipse at center top, #3F8A4D 0%, #2F6E3B 50%, #1A3F22 100%)',
           border: '2px solid var(--ink)',

@@ -3,6 +3,7 @@
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { PlayerPortrait } from './player-portrait';
 import { diffStyle, posLabel } from './chalk-player';
+import { teamColor } from '@/lib/team-colors';
 
 interface TransferTargetsProps {
   allPlayers: Player[];
@@ -86,6 +87,7 @@ export function TransferTargets({
           const ownership = parseFloat(player.selected_by_percent || '0');
           const price = (player.now_cost ?? 0) / 10;
           const diffColors = next ? diffStyle(next.difficulty) : null;
+          const portraitBg = teamColor(team?.short_name)?.primary ?? null;
 
           return (
             <div
@@ -102,7 +104,7 @@ export function TransferTargets({
               >
                 {i + 1}
               </div>
-              <PlayerPortrait player={player} size={38} />
+              <PlayerPortrait player={player} size={38} background={portraitBg} />
               <div className="min-w-0">
                 <div
                   className="font-serif font-extrabold text-[18px] tracking-[-0.01em] leading-tight truncate"

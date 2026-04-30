@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { PlayerPortrait } from './player-portrait';
+import { teamColor } from '@/lib/team-colors';
 
 interface ChalkPlayerProps {
   player: Player;
@@ -63,6 +64,10 @@ export function ChalkPlayer({
   const showStatusDot = status === 'd' || status === 'i' || status === 'u';
   const dotColor = status === 'i' || status === 'u' ? 'var(--red-rule)' : '#C9A227';
 
+  const teamShort = teams.find((t) => t.id === player.team)?.short_name ?? null;
+  const tc = teamColor(teamShort);
+  const portraitBg = tc?.primary ?? null;
+
   const formScore = parseFloat(player.form || '0');
   const price = (player.now_cost ?? 0) / 10;
 
@@ -97,7 +102,7 @@ export function ChalkPlayer({
           width: 56,
           height: 56,
           borderRadius: '50%',
-          background: 'var(--paper)',
+          background: portraitBg ?? 'var(--paper)',
           border: '2px solid var(--chalk)',
           boxShadow: open
             ? '0 0 0 3px var(--grass), 0 6px 18px rgba(0,0,0,0.45)'
@@ -105,7 +110,7 @@ export function ChalkPlayer({
           overflow: 'hidden',
         }}
       >
-        <PlayerPortrait player={player} size={52} />
+        <PlayerPortrait player={player} size={52} background={portraitBg} />
         {showStatusDot && (
           <div
             className="absolute"

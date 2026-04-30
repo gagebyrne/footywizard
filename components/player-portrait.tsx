@@ -7,7 +7,19 @@ interface PlayerPortraitProps {
   player: Pick<Player, 'web_name' | 'photo'>;
   size?: number;
   ringColor?: string | null;
-  background?: string;
+  /** Hex/CSS background — usually the team primary colour. */
+  background?: string | null;
+}
+
+function isLight(hex: string): boolean {
+  const m = hex.match(/^#?([\da-f]{6})$/i);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  // perceived luminance
+  return 0.299 * r + 0.587 * g + 0.114 * b > 165;
 }
 
 export function PlayerPortrait({
@@ -31,6 +43,9 @@ export function PlayerPortrait({
     .join('')
     .toUpperCase();
 
+  const bg = background ?? 'var(--paper-hi)';
+  const initialsInk = background && isLight(background) ? '#16140F' : '#F2EBDD';
+
   return (
     <div
       className="grid place-items-center overflow-hidden relative shrink-0"
@@ -38,7 +53,7 @@ export function PlayerPortrait({
         width: size,
         height: size,
         borderRadius: '50%',
-        background: background ?? 'var(--paper-hi)',
+        background: bg,
         border: ringColor ? `2px solid ${ringColor}` : '1.5px solid var(--ink)',
       }}
     >
@@ -61,7 +76,7 @@ export function PlayerPortrait({
         <span
           className="font-serif font-extrabold"
           style={{
-            color: 'var(--paper)',
+            color: initialsInk,
             fontSize: size * 0.36,
             letterSpacing: '-0.02em',
           }}
