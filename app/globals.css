@@ -92,8 +92,49 @@ body {
   50%       { transform: scale(1.18); }
 }
 
+/* ============================================================
+   Tooltip animations
+   ============================================================ */
+
+@keyframes tooltip-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tooltip-fix-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   Chart animations
+   ============================================================ */
+
+@keyframes chart-line-draw {
+  from { stroke-dashoffset: 2000; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes chart-dot-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ============================================================
+   Landing page entrance animations
+   ============================================================ */
+
+@keyframes landing-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chalk-line    { animation: none !important; stroke-dashoffset: 0 !important; }
   .pitch-row     { animation: none !important; opacity: 1 !important; transform: none !important; }
   .captain-badge { animation: none !important; }
+  .tooltip-inner { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .chart-line    { animation: none !important; stroke-dashoffset: 0 !important; }
+  .chart-dot     { animation: none !important; opacity: 1 !important; }
+  .landing-item  { animation: none !important; opacity: 1 !important; transform: none !important; }
 }

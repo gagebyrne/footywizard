@@ -152,84 +152,96 @@ export function ChalkPlayer({
             left: '50%',
             transform: 'translateX(-50%)',
             width: 230,
-            background: 'var(--paper)',
-            color: 'var(--ink)',
-            border: '1.5px solid var(--ink)',
-            padding: '10px 12px',
-            boxShadow: '0 8px 22px rgba(0,0,0,0.55)',
           }}
         >
           <div
-            className="flex justify-between items-baseline pb-1.5 mb-2"
-            style={{ borderBottom: '1px solid var(--ink)' }}
+            className="tooltip-inner relative"
+            style={{
+              background: 'var(--paper)',
+              color: 'var(--ink)',
+              border: '1.5px solid var(--ink)',
+              padding: '10px 12px',
+              boxShadow: '0 8px 22px rgba(0,0,0,0.55)',
+              animation: 'tooltip-enter 0.18s ease-out both',
+            }}
           >
-            <span className="font-serif font-extrabold text-base">{player.web_name}</span>
-            <span
-              className="font-mono text-[10px] tracking-wider"
+            <div
+              className="flex justify-between items-baseline pb-1.5 mb-2"
+              style={{ borderBottom: '1px solid var(--ink)' }}
+            >
+              <span className="font-serif font-extrabold text-base">{player.web_name}</span>
+              <span
+                className="font-mono text-[10px] tracking-wider"
+                style={{ color: 'var(--ink-mute)' }}
+              >
+                {teams.find((t) => t.id === player.team)?.short_name ?? '—'} · {posLabel(player.element_type)}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2.5">
+              <TipStat label="xP" value={xp.toFixed(1)} accent />
+              <TipStat label="Form" value={formScore.toFixed(1)} />
+              <TipStat label="£m" value={price.toFixed(1)} />
+            </div>
+            <p
+              className="font-mono text-[9px] tracking-[0.14em] mb-1"
               style={{ color: 'var(--ink-mute)' }}
             >
-              {teams.find((t) => t.id === player.team)?.short_name ?? '—'} · {posLabel(player.element_type)}
-            </span>
+              NEXT THREE
+            </p>
+            <div className="flex gap-1.5">
+              {fx.length === 0 ? (
+                <span className="font-mono text-[10px]" style={{ color: 'var(--ink-mute)' }}>
+                  Fixtures pending
+                </span>
+              ) : (
+                fx.map((f, i) => {
+                  const c = diffStyle(f.diff);
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 font-mono font-bold text-[11px] text-center"
+                      style={{
+                        background: c.fill,
+                        color: c.ink,
+                        padding: '6px 4px',
+                        animation: `tooltip-fix-enter 0.15s ease-out ${0.1 + i * 0.05}s both`,
+                      }}
+                    >
+                      <div className="text-[9px] opacity-85">{f.home ? 'v' : '@'}</div>
+                      <div>{f.opp}</div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            {/* arrow */}
+            <span
+              className="absolute"
+              style={{
+                bottom: -8,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '8px solid transparent',
+                borderRight: '8px solid transparent',
+                borderTop: '8px solid var(--ink)',
+              }}
+            />
+            <span
+              className="absolute"
+              style={{
+                bottom: -6,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '7px solid transparent',
+                borderRight: '7px solid transparent',
+                borderTop: '7px solid var(--paper)',
+              }}
+            />
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-2.5">
-            <TipStat label="xP" value={xp.toFixed(1)} accent />
-            <TipStat label="Form" value={formScore.toFixed(1)} />
-            <TipStat label="£m" value={price.toFixed(1)} />
-          </div>
-          <p
-            className="font-mono text-[9px] tracking-[0.14em] mb-1"
-            style={{ color: 'var(--ink-mute)' }}
-          >
-            NEXT THREE
-          </p>
-          <div className="flex gap-1.5">
-            {fx.length === 0 ? (
-              <span className="font-mono text-[10px]" style={{ color: 'var(--ink-mute)' }}>
-                Fixtures pending
-              </span>
-            ) : (
-              fx.map((f, i) => {
-                const c = diffStyle(f.diff);
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 font-mono font-bold text-[11px] text-center"
-                    style={{ background: c.fill, color: c.ink, padding: '6px 4px' }}
-                  >
-                    <div className="text-[9px] opacity-85">{f.home ? 'v' : '@'}</div>
-                    <div>{f.opp}</div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          {/* arrow */}
-          <span
-            className="absolute"
-            style={{
-              bottom: -8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '8px solid transparent',
-              borderRight: '8px solid transparent',
-              borderTop: '8px solid var(--ink)',
-            }}
-          />
-          <span
-            className="absolute"
-            style={{
-              bottom: -6,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '7px solid transparent',
-              borderRight: '7px solid transparent',
-              borderTop: '7px solid var(--paper)',
-            }}
-          />
         </div>
       )}
     </div>

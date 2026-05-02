@@ -135,15 +135,17 @@ export function HistoryChart({ predictions }: HistoryChartProps) {
             strokeWidth={1}
           />
 
-          {/* Predicted line (ink) */}
+          {/* Predicted line (ink) — draws in first */}
           <path
             d={predictedPath}
             fill="none"
             stroke="var(--ink)"
             strokeWidth={1.6}
             strokeLinejoin="round"
+            className="chart-line"
+            style={{ strokeDasharray: 2000, animation: 'chart-line-draw 1.2s ease-out 0.1s both' }}
           />
-          {sorted.map((p) => (
+          {sorted.map((p, i) => (
             <circle
               key={`pred-${p.gameweek}`}
               cx={xPos(p.gameweek)}
@@ -152,10 +154,12 @@ export function HistoryChart({ predictions }: HistoryChartProps) {
               fill="var(--paper-hi)"
               stroke="var(--ink)"
               strokeWidth={1.4}
+              className="chart-dot"
+              style={{ animation: `chart-dot-enter 0.2s ease-out ${0.3 + i * 0.07}s both` }}
             />
           ))}
 
-          {/* Actual line (grass) */}
+          {/* Actual line (grass) — draws in after predicted */}
           {actualPath && (
             <path
               d={actualPath}
@@ -163,9 +167,11 @@ export function HistoryChart({ predictions }: HistoryChartProps) {
               stroke="var(--grass)"
               strokeWidth={2.2}
               strokeLinejoin="round"
+              className="chart-line"
+              style={{ strokeDasharray: 2000, animation: 'chart-line-draw 1.2s ease-out 0.5s both' }}
             />
           )}
-          {withActuals.map((p) => (
+          {withActuals.map((p, i) => (
             <circle
               key={`act-${p.gameweek}`}
               cx={xPos(p.gameweek)}
@@ -174,6 +180,8 @@ export function HistoryChart({ predictions }: HistoryChartProps) {
               fill="var(--grass)"
               stroke="var(--paper-hi)"
               strokeWidth={1.2}
+              className="chart-dot"
+              style={{ animation: `chart-dot-enter 0.2s ease-out ${0.7 + i * 0.07}s both` }}
             />
           ))}
         </svg>
