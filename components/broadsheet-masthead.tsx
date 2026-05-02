@@ -28,9 +28,11 @@ export function BroadsheetMasthead({ data, gameweek, deadline }: BroadsheetMasth
       </div>
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex items-end gap-3.5">
-          <WizardBall size={56} />
+          <div className="hidden sm:block shrink-0">
+            <WizardBall size={56} />
+          </div>
           <div>
-            <h1 className="font-serif font-extrabold text-[56px] sm:text-[64px] leading-[0.88] tracking-[-0.035em] text-[var(--ink)]">
+            <h1 className="font-serif font-extrabold text-[40px] sm:text-[56px] lg:text-[64px] leading-[0.88] tracking-[-0.035em] text-[var(--ink)]">
               FootyWizard
             </h1>
             <p className="font-serif italic text-base text-[var(--ink-soft)] mt-1">

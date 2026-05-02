@@ -81,7 +81,8 @@ export function FixtureOutlook({ players, fixtures, teams }: FixtureOutlookProps
           Fixtures not yet released for next gameweeks.
         </div>
       ) : (
-        <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--ink)' }}>
               {['Player', 'Team', 'Pos', 'GW+1', 'GW+2', 'GW+3', 'Run'].map((h, i) => (
@@ -174,7 +175,8 @@ export function FixtureOutlook({ players, fixtures, teams }: FixtureOutlookProps
               );
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { signOut } from '@/app/dashboard/actions';
 import { WizardBall } from './wizard-ball';
 import { ThemeToggle } from './theme-provider';
+import { MobileNav } from './mobile-nav';
 
 export async function AppNav() {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export async function AppNav() {
 
   return (
     <nav
-      className="flex items-center justify-between px-6 py-3.5 bg-[var(--paper)] text-[var(--ink)]"
+      className="relative flex items-center justify-between px-6 py-3.5 bg-[var(--paper)] text-[var(--ink)]"
       style={{
         borderTop: '3px solid var(--ink)',
         borderBottom: '1px solid var(--ink)',
@@ -41,7 +42,7 @@ export async function AppNav() {
             {user.email}
           </span>
         )}
-        <form action={signOut}>
+        <form action={signOut} className="hidden sm:block">
           <button
             type="submit"
             className="font-mono text-[10px] uppercase tracking-[0.16em] px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] hover:opacity-90 transition-opacity cursor-pointer"
@@ -49,6 +50,7 @@ export async function AppNav() {
             Sign out
           </button>
         </form>
+        <MobileNav email={user?.email ?? undefined} />
       </div>
     </nav>
   );
