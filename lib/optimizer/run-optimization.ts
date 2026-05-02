@@ -24,7 +24,7 @@ function isViable(player: Player, fixtures: Fixture[]): boolean {
   return fixtures.some((f) => f.team_h === player.team || f.team_a === player.team);
 }
 
-export async function runOptimization(squadPlayerIds?: number[]): Promise<OptimizationResult> {
+export async function runOptimization(squadPlayerIds?: number[], userId?: string): Promise<OptimizationResult> {
   const requestStartTime = Date.now();
   console.log('[runOptimization] Started', { squadSize: squadPlayerIds?.length });
 
@@ -189,8 +189,9 @@ export async function runOptimization(squadPlayerIds?: number[]): Promise<Optimi
       totalTimeMs: Date.now() - requestStartTime,
     });
 
-    if (result.captain) {
+    if (result.captain && userId) {
       savePrediction(
+        userId,
         currentEvent.id,
         result.players,
         result.captain,

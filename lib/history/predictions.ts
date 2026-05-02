@@ -1,28 +1,7 @@
-/**
- * Historical prediction persistence and actuals backfill
- * 
- * Manages data/historical-predictions.json storage:
- * - savePrediction: Appends predictions (overwrites if GW exists)
- * - backfillActuals: Fetches element-summary for finished gameweeks and updates actualPoints
- * 
- * Schema:
- * {
- *   gameweek: number,
- *   timestamp: ISO string,
- *   predictions: Array<{ playerId: number, playerName: string, expectedPoints: number, actualPoints?: number }>,
- *   totalExpectedPoints: number,
- *   totalActualPoints?: number
- * }
- */
-
-import { promises as fs } from 'fs';
-import path from 'path';
 import FplFetch from 'fpl-fetch';
 import type { Player } from '@/lib/types/fpl';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
-/**
- * Lazy FPL client initialization for testability
- */
 let fplInstance: InstanceType<typeof FplFetch> | null = null;
 
 function getFpl(): InstanceType<typeof FplFetch> {
@@ -32,16 +11,10 @@ function getFpl(): InstanceType<typeof FplFetch> {
   return fplInstance;
 }
 
-/**
- * Reset FPL instance (for testing)
- */
 export function resetFplInstance(): void {
   fplInstance = null;
 }
 
-/**
- * Historical prediction record
- */
 export interface PredictionRecord {
   gameweek: number;
   timestamp: string;
@@ -55,9 +28,6 @@ export interface PredictionRecord {
   };
 }
 
-/**
- * Per-player prediction with optional actuals
- */
 export interface PlayerPrediction {
   playerId: number;
   playerName: string;
@@ -65,45 +35,36 @@ export interface PlayerPrediction {
   actualPoints?: number;
 }
 
-const PREDICTIONS_FILE = path.join(process.cwd(), 'data', 'historical-predictions.json');
-
-/**
- * Load all historical predictions from disk
- */
-async function loadPredictions(): Promise<PredictionRecord[]> {
-  try {
-    const content = await fs.readFile(PREDICTIONS_FILE, 'utf-8');
-    return JSON.parse(content) as PredictionRecord[];
-  } catch (error) {
-    // File doesn't exist or is invalid
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
+interface PredictionRow {
+  id: string;
+  user_id: string;
+  gameweek: number;
+  timestamp: string;
+  total_expected_points: number;
+  total_actual_points: number | null;
+  formation: string | null;
+  captain_player_id: number;
+  captain_player_name: string;
+  players: PlayerPrediction[];
 }
 
-/**
- * Save predictions to disk (atomic write)
- */
-async function writePredictions(predictions: PredictionRecord[]): Promise<void> {
-  const content = JSON.stringify(predictions, null, 2);
-  await fs.writeFile(PREDICTIONS_FILE, content, 'utf-8');
+function rowToRecord(row: PredictionRow): PredictionRecord {
+  return {
+    gameweek: row.gameweek,
+    timestamp: row.timestamp,
+    predictions: row.players,
+    totalExpectedPoints: row.total_expected_points,
+    ...(row.total_actual_points !== null && { totalActualPoints: row.total_actual_points }),
+    ...(row.formation && { formation: row.formation }),
+    captain: {
+      playerId: row.captain_player_id,
+      playerName: row.captain_player_name,
+    },
+  };
 }
 
-/**
- * Save prediction for a gameweek
- * 
- * Appends new prediction or overwrites if gameweek already exists.
- * Logs structured output: GW, timestamp, player count, expected total.
- * 
- * @param gameweek - Gameweek number
- * @param lineup - Optimized lineup
- * @param captain - Captain player
- * @param expectedPoints - Total expected points for the lineup
- * @param formation - Formation string (e.g. "3-4-3"), optional
- */
 export async function savePrediction(
+  userId: string,
   gameweek: number,
   lineup: Player[],
   captain: Player,
@@ -111,159 +72,146 @@ export async function savePrediction(
   formation?: string
 ): Promise<void> {
   const startTime = Date.now();
-  
+
   try {
-    const predictions = await loadPredictions();
-    
-    // Build prediction record
-    const record: PredictionRecord = {
-      gameweek,
-      timestamp: new Date().toISOString(),
-      predictions: lineup.map((player) => ({
-        playerId: player.id,
-        playerName: player.web_name,
-        expectedPoints: player.ep_next ? parseFloat(player.ep_next) : 0,
-      })),
-      totalExpectedPoints: expectedPoints,
-      ...(formation && { formation }),
-      captain: {
-        playerId: captain.id,
-        playerName: captain.web_name,
-      },
-    };
-    
-    // Remove existing prediction for this gameweek (overwrite)
-    const filtered = predictions.filter((p) => p.gameweek !== gameweek);
-    filtered.push(record);
-    
-    // Sort by gameweek descending (newest first)
-    filtered.sort((a, b) => b.gameweek - a.gameweek);
-    
-    await writePredictions(filtered);
-    
-    const durationMs = Date.now() - startTime;
+    const players: PlayerPrediction[] = lineup.map((player) => ({
+      playerId: player.id,
+      playerName: player.web_name,
+      expectedPoints: player.ep_next ? parseFloat(player.ep_next) : 0,
+    }));
+
+    const { error } = await supabaseAdmin
+      .from('predictions')
+      .upsert(
+        {
+          user_id: userId,
+          gameweek,
+          timestamp: new Date().toISOString(),
+          total_expected_points: expectedPoints,
+          formation: formation ?? null,
+          captain_player_id: captain.id,
+          captain_player_name: captain.web_name,
+          players,
+        },
+        { onConflict: 'user_id,gameweek' }
+      );
+
+    if (error) throw new Error(error.message);
+
     console.log('[Predictions] Saved prediction', {
       gameweek,
-      timestamp: record.timestamp,
       playerCount: lineup.length,
       expectedTotal: expectedPoints.toFixed(2),
-      durationMs,
+      durationMs: Date.now() - startTime,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Predictions] Failed to save prediction', {
       gameweek,
-      error: message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
-    // Don't throw — saving predictions is fire-and-forget
   }
 }
 
-/**
- * Backfill actual points for finished gameweeks
- * 
- * Fetches element-summary for each player in finished gameweeks that lack actuals.
- * Updates actualPoints fields and totalActualPoints.
- * Logs structured output: GW, players fetched, API errors, actual total.
- * 
- * @returns Updated predictions with actuals backfilled
- */
-export async function backfillActuals(): Promise<PredictionRecord[]> {
+export async function backfillActuals(userId: string): Promise<PredictionRecord[]> {
   const startTime = Date.now();
-  
+
   try {
-    const predictions = await loadPredictions();
-    
-    // Fetch current bootstrap data to determine finished gameweeks
+    const { data: rows, error } = await supabaseAdmin
+      .from('predictions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('gameweek', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    if (!rows || rows.length === 0) return [];
+
     const fpl = getFpl();
     const bootstrapData = await fpl.getBootstrapData();
     const finishedGameweeks = new Set(
       bootstrapData.events.filter((e) => e.finished).map((e) => e.id)
     );
-    
+
     let updatedCount = 0;
     let apiErrors = 0;
-    
-    for (const record of predictions) {
-      // Skip if gameweek not finished or already has actuals
-      if (!finishedGameweeks.has(record.gameweek) || record.totalActualPoints !== undefined) {
+
+    for (const row of rows as PredictionRow[]) {
+      if (!finishedGameweeks.has(row.gameweek) || row.total_actual_points !== null) {
         continue;
       }
-      
+
       let totalActual = 0;
       let playersFetched = 0;
-      
-      for (const prediction of record.predictions) {
+      const updatedPlayers = [...row.players];
+
+      for (const prediction of updatedPlayers) {
         try {
           const playerSummary = await fpl.getPlayer(prediction.playerId);
-          const historyEntry = playerSummary.history.find(
-            (h) => h.round === record.gameweek
-          );
-          
+          const historyEntry = playerSummary.history.find((h) => h.round === row.gameweek);
+
           if (historyEntry) {
             prediction.actualPoints = historyEntry.total_points;
-            
-            // Double captain points
-            if (prediction.playerId === record.captain.playerId) {
-              totalActual += historyEntry.total_points * 2;
-            } else {
-              totalActual += historyEntry.total_points;
-            }
-            
+            totalActual +=
+              prediction.playerId === row.captain_player_id
+                ? historyEntry.total_points * 2
+                : historyEntry.total_points;
             playersFetched++;
           }
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
           console.error('[Predictions] Failed to fetch player summary', {
-            gameweek: record.gameweek,
+            gameweek: row.gameweek,
             playerId: prediction.playerId,
-            playerName: prediction.playerName,
-            error: message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
           apiErrors++;
         }
       }
-      
-      record.totalActualPoints = totalActual;
-      updatedCount++;
-      
-      console.log('[Predictions] Backfilled actuals for gameweek', {
-        gameweek: record.gameweek,
-        playersFetched,
-        apiErrors,
-        actualTotal: totalActual.toFixed(2),
-      });
+
+      const { error: updateError } = await supabaseAdmin
+        .from('predictions')
+        .update({ players: updatedPlayers, total_actual_points: totalActual })
+        .eq('id', row.id);
+
+      if (updateError) {
+        console.error('[Predictions] Failed to update actuals', {
+          gameweek: row.gameweek,
+          error: updateError.message,
+        });
+      } else {
+        row.players = updatedPlayers;
+        row.total_actual_points = totalActual;
+        updatedCount++;
+
+        console.log('[Predictions] Backfilled actuals for gameweek', {
+          gameweek: row.gameweek,
+          playersFetched,
+          apiErrors,
+          actualTotal: totalActual.toFixed(2),
+        });
+      }
     }
-    
-    if (updatedCount > 0) {
-      await writePredictions(predictions);
-    }
-    
-    const durationMs = Date.now() - startTime;
+
     console.log('[Predictions] Backfill complete', {
       updatedGameweeks: updatedCount,
       totalApiErrors: apiErrors,
-      durationMs,
+      durationMs: Date.now() - startTime,
     });
-    
-    return predictions;
+
+    return (rows as PredictionRow[]).map(rowToRecord);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Predictions] Backfill failed', {
-      error: message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
-    // Return existing predictions on error
-    return loadPredictions();
+
+    const { data: rows } = await supabaseAdmin
+      .from('predictions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('gameweek', { ascending: false });
+
+    return ((rows ?? []) as PredictionRow[]).map(rowToRecord);
   }
 }
 
-/**
- * Get all historical predictions (with actuals backfilled on-demand)
- * 
- * Loads predictions from disk and triggers backfill for finished gameweeks.
- * 
- * @returns All predictions with actuals where available
- */
-export async function getPredictions(): Promise<PredictionRecord[]> {
-  return backfillActuals();
+export async function getPredictions(userId: string): Promise<PredictionRecord[]> {
+  return backfillActuals(userId);
 }

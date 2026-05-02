@@ -1,285 +1,250 @@
-/**
- * Tests for prediction persistence and actuals backfill
- */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { promises as fs } from 'fs';
-import path from 'path';
 import type { Player } from '@/lib/types/fpl';
 import {
   savePrediction,
   backfillActuals,
   getPredictions,
   resetFplInstance,
-  type PredictionRecord,
+  type PlayerPrediction,
 } from '@/lib/history/predictions';
 
-// Mock FPL API functions
+// ─── FPL Mocks ───────────────────────────────────────────────────────────────
+
 const mockGetBootstrapData = vi.fn();
 const mockGetPlayer = vi.fn();
 
-// Mock FplFetch class
-vi.mock('fpl-fetch', () => {
-  return {
-    default: class FplFetch {
-      getBootstrapData = mockGetBootstrapData;
-      getPlayer = mockGetPlayer;
-    },
-  };
-});
+vi.mock('fpl-fetch', () => ({
+  default: class FplFetch {
+    getBootstrapData = mockGetBootstrapData;
+    getPlayer = mockGetPlayer;
+  },
+}));
 
-const TEST_PREDICTIONS_FILE = path.join(process.cwd(), 'data', 'historical-predictions.json');
+// ─── Supabase Mocks ───────────────────────────────────────────────────────────
+
+const { mockFrom, mockUpsert, mockSelect, mockEqSelect, mockOrder, mockUpdate, mockEqUpdate } =
+  vi.hoisted(() => ({
+    mockFrom: vi.fn(),
+    mockUpsert: vi.fn(),
+    mockSelect: vi.fn(),
+    mockEqSelect: vi.fn(),
+    mockOrder: vi.fn(),
+    mockUpdate: vi.fn(),
+    mockEqUpdate: vi.fn(),
+  }));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: { from: mockFrom },
+}));
+
+interface TestRow {
+  id: string;
+  user_id: string;
+  gameweek: number;
+  timestamp: string;
+  total_expected_points: number;
+  total_actual_points: number | null;
+  formation: string | null;
+  captain_player_id: number;
+  captain_player_name: string;
+  players: PlayerPrediction[];
+}
+
+const TEST_USER_ID = 'test-user-uuid';
+
+function setupSelectMock(rows: TestRow[]) {
+  mockSelect.mockReturnValue({ eq: mockEqSelect });
+  mockEqSelect.mockReturnValue({ order: mockOrder });
+  mockOrder.mockResolvedValue({ data: rows, error: null });
+}
+
+function setupWriteMocks() {
+  mockUpsert.mockResolvedValue({ error: null });
+  mockUpdate.mockReturnValue({ eq: mockEqUpdate });
+  mockEqUpdate.mockResolvedValue({ error: null });
+}
+
+function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, totalActual: number | null = null): TestRow {
+  return {
+    id: `row-gw${gameweek}`,
+    user_id: TEST_USER_ID,
+    gameweek,
+    timestamp: new Date().toISOString(),
+    total_expected_points: players.reduce((s, p) => s + p.expectedPoints, 0),
+    total_actual_points: totalActual,
+    formation: '4-4-2',
+    captain_player_id: captainId,
+    captain_player_name: players.find(p => p.playerId === captainId)?.playerName ?? '',
+    players,
+  };
+}
 
 describe('savePrediction', () => {
-  beforeEach(async () => {
-    // Reset file to empty array
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
+  beforeEach(() => {
+    mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
+    setupWriteMocks();
   });
 
-  afterEach(async () => {
-    // Clean up
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
-  });
+  afterEach(() => vi.clearAllMocks());
 
-  it('should save a new prediction', async () => {
+  it('should upsert with correct fields', async () => {
     const lineup: Player[] = [
       { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
       { id: 2, web_name: 'Haaland', ep_next: '9.2' } as Player,
     ];
     const captain: Player = { id: 1, web_name: 'Salah' } as Player;
 
-    await savePrediction(1, lineup, captain, 65.5);
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 65.5);
 
-    const content = await fs.readFile(TEST_PREDICTIONS_FILE, 'utf-8');
-    const predictions: PredictionRecord[] = JSON.parse(content);
-
-    expect(predictions).toHaveLength(1);
-    expect(predictions[0].gameweek).toBe(1);
-    expect(predictions[0].predictions).toHaveLength(2);
-    expect(predictions[0].predictions[0].playerId).toBe(1);
-    expect(predictions[0].predictions[0].playerName).toBe('Salah');
-    expect(predictions[0].predictions[0].expectedPoints).toBe(8.5);
-    expect(predictions[0].totalExpectedPoints).toBe(65.5);
-    expect(predictions[0].captain.playerId).toBe(1);
-    expect(predictions[0].captain.playerName).toBe('Salah');
+    expect(mockUpsert).toHaveBeenCalledOnce();
+    const [upsertData] = mockUpsert.mock.calls[0];
+    expect(upsertData.user_id).toBe(TEST_USER_ID);
+    expect(upsertData.gameweek).toBe(1);
+    expect(upsertData.total_expected_points).toBe(65.5);
+    expect(upsertData.captain_player_id).toBe(1);
+    expect(upsertData.captain_player_name).toBe('Salah');
+    expect(upsertData.players).toHaveLength(2);
+    expect(upsertData.players[0]).toMatchObject({ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 });
+    expect(upsertData.players[1]).toMatchObject({ playerId: 2, playerName: 'Haaland', expectedPoints: 9.2 });
   });
 
-  it('should overwrite existing prediction for same gameweek', async () => {
-    const lineup1: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-    ];
-    const lineup2: Player[] = [
-      { id: 2, web_name: 'Haaland', ep_next: '9.2' } as Player,
-    ];
+  it('should include formation when provided', async () => {
+    const lineup: Player[] = [{ id: 1, web_name: 'Salah', ep_next: '8.5' } as Player];
     const captain: Player = { id: 1, web_name: 'Salah' } as Player;
 
-    await savePrediction(1, lineup1, captain, 60.0);
-    await savePrediction(1, lineup2, captain, 70.0);
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 60.0, '4-3-3');
 
-    const content = await fs.readFile(TEST_PREDICTIONS_FILE, 'utf-8');
-    const predictions: PredictionRecord[] = JSON.parse(content);
-
-    expect(predictions).toHaveLength(1);
-    expect(predictions[0].totalExpectedPoints).toBe(70.0);
-    expect(predictions[0].predictions[0].playerName).toBe('Haaland');
+    const [upsertData] = mockUpsert.mock.calls[0];
+    expect(upsertData.formation).toBe('4-3-3');
   });
 
-  it('should preserve multiple gameweeks', async () => {
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-    ];
+  it('should upsert with onConflict user_id,gameweek', async () => {
+    const lineup: Player[] = [{ id: 1, web_name: 'Salah', ep_next: '8.5' } as Player];
     const captain: Player = { id: 1, web_name: 'Salah' } as Player;
 
-    await savePrediction(1, lineup, captain, 60.0);
-    await savePrediction(2, lineup, captain, 62.0);
-    await savePrediction(3, lineup, captain, 64.0);
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 60.0);
 
-    const content = await fs.readFile(TEST_PREDICTIONS_FILE, 'utf-8');
-    const predictions: PredictionRecord[] = JSON.parse(content);
-
-    expect(predictions).toHaveLength(3);
-    // Should be sorted newest first
-    expect(predictions[0].gameweek).toBe(3);
-    expect(predictions[1].gameweek).toBe(2);
-    expect(predictions[2].gameweek).toBe(1);
+    const [, upsertOpts] = mockUpsert.mock.calls[0];
+    expect(upsertOpts.onConflict).toBe('user_id,gameweek');
   });
 
-  it('should handle missing ep_next gracefully', async () => {
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah' } as Player, // No ep_next
-    ];
+  it('should default expectedPoints to 0 when ep_next is missing', async () => {
+    const lineup: Player[] = [{ id: 1, web_name: 'Salah' } as Player];
     const captain: Player = { id: 1, web_name: 'Salah' } as Player;
 
-    await savePrediction(1, lineup, captain, 60.0);
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 60.0);
 
-    const content = await fs.readFile(TEST_PREDICTIONS_FILE, 'utf-8');
-    const predictions: PredictionRecord[] = JSON.parse(content);
+    const [upsertData] = mockUpsert.mock.calls[0];
+    expect(upsertData.players[0].expectedPoints).toBe(0);
+  });
 
-    expect(predictions[0].predictions[0].expectedPoints).toBe(0);
+  it('should not throw when upsert fails', async () => {
+    mockUpsert.mockResolvedValue({ error: { message: 'DB error' } });
+
+    const lineup: Player[] = [{ id: 1, web_name: 'Salah', ep_next: '8.5' } as Player];
+    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
+
+    await expect(savePrediction(TEST_USER_ID, 1, lineup, captain, 60.0)).resolves.toBeUndefined();
   });
 });
 
 describe('backfillActuals', () => {
-  beforeEach(async () => {
-    // Reset file to empty array
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
-    // Reset FPL instance
+  beforeEach(() => {
+    mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
+    setupWriteMocks();
     resetFplInstance();
   });
 
-  afterEach(async () => {
-    // Clean up
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
-    vi.clearAllMocks();
-  });
+  afterEach(() => vi.clearAllMocks());
 
-  it('should backfill actuals for finished gameweek', async () => {
-    // Setup prediction without actuals
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-      { id: 2, web_name: 'Haaland', ep_next: '9.2' } as Player,
-    ];
-    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
-    await savePrediction(1, lineup, captain, 65.5);
+  it('should backfill actuals for a finished gameweek', async () => {
+    const rows = [makeRow(1, [
+      { playerId: 1, playerName: 'Salah', expectedPoints: 8.5 },
+      { playerId: 2, playerName: 'Haaland', expectedPoints: 9.2 },
+    ], 1)];
+    setupSelectMock(rows);
 
-    // Mock FPL responses
     mockGetBootstrapData.mockResolvedValue({
-      events: [
-        { id: 1, finished: true },
-        { id: 2, finished: false },
-      ],
-      elements: [],
-      teams: [],
+      events: [{ id: 1, finished: true }, { id: 2, finished: false }],
+      elements: [], teams: [],
     });
-
     mockGetPlayer
-      .mockResolvedValueOnce({
-        history: [{ round: 1, total_points: 12 }],
-      })
-      .mockResolvedValueOnce({
-        history: [{ round: 1, total_points: 8 }],
-      });
+      .mockResolvedValueOnce({ history: [{ round: 1, total_points: 12 }] })
+      .mockResolvedValueOnce({ history: [{ round: 1, total_points: 8 }] });
 
-    const result = await backfillActuals();
+    const result = await backfillActuals(TEST_USER_ID);
 
     expect(result).toHaveLength(1);
     expect(result[0].predictions[0].actualPoints).toBe(12);
     expect(result[0].predictions[1].actualPoints).toBe(8);
-    // Captain points doubled: (12 * 2) + 8 = 32
+    // Captain (Salah) doubled: (12 * 2) + 8 = 32
     expect(result[0].totalActualPoints).toBe(32);
   });
 
   it('should skip unfinished gameweeks', async () => {
-    // Setup prediction for unfinished gameweek
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-    ];
-    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
-    await savePrediction(2, lineup, captain, 65.5);
+    const rows = [makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1)];
+    setupSelectMock(rows);
 
-    // Mock FPL responses
     mockGetBootstrapData.mockResolvedValue({
-      events: [
-        { id: 1, finished: true },
-        { id: 2, finished: false }, // Not finished
-      ],
-      elements: [],
-      teams: [],
+      events: [{ id: 1, finished: true }, { id: 2, finished: false }],
+      elements: [], teams: [],
     });
 
-    const result = await backfillActuals();
+    const result = await backfillActuals(TEST_USER_ID);
 
-    expect(result).toHaveLength(1);
     expect(result[0].predictions[0].actualPoints).toBeUndefined();
     expect(result[0].totalActualPoints).toBeUndefined();
-    // getPlayer should not be called for unfinished gameweek
     expect(mockGetPlayer).not.toHaveBeenCalled();
   });
 
   it('should skip gameweeks that already have actuals', async () => {
-    // Setup prediction with actuals already present
-    const record: PredictionRecord = {
-      gameweek: 1,
-      timestamp: new Date().toISOString(),
-      predictions: [
-        {
-          playerId: 1,
-          playerName: 'Salah',
-          expectedPoints: 8.5,
-          actualPoints: 12,
-        },
-      ],
-      totalExpectedPoints: 65.5,
-      totalActualPoints: 24, // Already set
-      captain: { playerId: 1, playerName: 'Salah' },
-    };
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5, actualPoints: 12 }], 1, 24)];
+    setupSelectMock(rows);
 
-    await fs.writeFile(TEST_PREDICTIONS_FILE, JSON.stringify([record], null, 2), 'utf-8');
-
-    // Mock FPL responses
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }],
-      elements: [],
-      teams: [],
+      elements: [], teams: [],
     });
 
-    await backfillActuals();
+    await backfillActuals(TEST_USER_ID);
 
-    // getPlayer should not be called since actuals already exist
     expect(mockGetPlayer).not.toHaveBeenCalled();
   });
 
   it('should handle API errors gracefully', async () => {
-    // Setup prediction
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-      { id: 2, web_name: 'Haaland', ep_next: '9.2' } as Player,
-    ];
-    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
-    await savePrediction(1, lineup, captain, 65.5);
+    const rows = [makeRow(1, [
+      { playerId: 1, playerName: 'Salah', expectedPoints: 8.5 },
+      { playerId: 2, playerName: 'Haaland', expectedPoints: 9.2 },
+    ], 1)];
+    setupSelectMock(rows);
 
-    // Mock FPL responses
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }],
-      elements: [],
-      teams: [],
+      elements: [], teams: [],
     });
-
-    // First player succeeds, second fails
     mockGetPlayer
-      .mockResolvedValueOnce({
-        history: [{ round: 1, total_points: 12 }],
-      })
-      .mockRejectedValueOnce(new Error('API rate limit exceeded'));
+      .mockResolvedValueOnce({ history: [{ round: 1, total_points: 12 }] })
+      .mockRejectedValueOnce(new Error('API rate limit'));
 
-    const result = await backfillActuals();
+    const result = await backfillActuals(TEST_USER_ID);
 
-    expect(result).toHaveLength(1);
     expect(result[0].predictions[0].actualPoints).toBe(12);
     expect(result[0].predictions[1].actualPoints).toBeUndefined();
-    // Only first player's doubled points: 12 * 2 = 24
+    // Only Salah (captain, doubled): 12 * 2 = 24
     expect(result[0].totalActualPoints).toBe(24);
   });
 
   it('should handle multiple gameweeks', async () => {
-    // Setup predictions for two gameweeks
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
+    const rows = [
+      makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1),
+      makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1),
     ];
-    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
-    await savePrediction(1, lineup, captain, 60.0);
-    await savePrediction(2, lineup, captain, 62.0);
+    setupSelectMock(rows);
 
-    // Mock FPL responses
     mockGetBootstrapData.mockResolvedValue({
-      events: [
-        { id: 1, finished: true },
-        { id: 2, finished: true },
-      ],
-      elements: [],
-      teams: [],
+      events: [{ id: 1, finished: true }, { id: 2, finished: true }],
+      elements: [], teams: [],
     });
-
     mockGetPlayer.mockResolvedValue({
       history: [
         { round: 1, total_points: 10 },
@@ -287,46 +252,47 @@ describe('backfillActuals', () => {
       ],
     });
 
-    const result = await backfillActuals();
+    const result = await backfillActuals(TEST_USER_ID);
 
     expect(result).toHaveLength(2);
-    // Sorted newest first
+    // GW2 (index 0 in result — rows returned newest first): 15 * 2 = 30
     expect(result[0].gameweek).toBe(2);
-    expect(result[0].totalActualPoints).toBe(30); // 15 * 2
+    expect(result[0].totalActualPoints).toBe(30);
+    // GW1 (index 1): 10 * 2 = 20
     expect(result[1].gameweek).toBe(1);
-    expect(result[1].totalActualPoints).toBe(20); // 10 * 2
+    expect(result[1].totalActualPoints).toBe(20);
+  });
+
+  it('should return empty array when user has no predictions', async () => {
+    setupSelectMock([]);
+
+    mockGetBootstrapData.mockResolvedValue({ events: [], elements: [], teams: [] });
+
+    const result = await backfillActuals(TEST_USER_ID);
+    expect(result).toHaveLength(0);
   });
 });
 
 describe('getPredictions', () => {
-  beforeEach(async () => {
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
+  beforeEach(() => {
+    mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
+    setupWriteMocks();
     resetFplInstance();
   });
 
-  afterEach(async () => {
-    await fs.writeFile(TEST_PREDICTIONS_FILE, '[]', 'utf-8');
-    vi.clearAllMocks();
-  });
+  afterEach(() => vi.clearAllMocks());
 
-  it('should trigger backfill when called', async () => {
-    const lineup: Player[] = [
-      { id: 1, web_name: 'Salah', ep_next: '8.5' } as Player,
-    ];
-    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
-    await savePrediction(1, lineup, captain, 60.0);
+  it('should return predictions with actuals backfilled', async () => {
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1)];
+    setupSelectMock(rows);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }],
-      elements: [],
-      teams: [],
+      elements: [], teams: [],
     });
+    mockGetPlayer.mockResolvedValue({ history: [{ round: 1, total_points: 12 }] });
 
-    mockGetPlayer.mockResolvedValue({
-      history: [{ round: 1, total_points: 12 }],
-    });
-
-    const result = await getPredictions();
+    const result = await getPredictions(TEST_USER_ID);
 
     expect(mockGetBootstrapData).toHaveBeenCalled();
     expect(mockGetPlayer).toHaveBeenCalled();

@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getPredictions, type PredictionRecord } from '@/lib/history/predictions';
 import { calculateAggregateMetrics } from '@/lib/history/metrics';
+import { createClient } from '@/lib/supabase/server';
 import { AppNav } from '@/components/app-nav';
 import { HistoryChart } from '@/components/history-chart';
 import { WizardBall } from '@/components/wizard-ball';
@@ -20,9 +22,9 @@ interface HistoryResponse {
   metrics: AggregateMetrics;
 }
 
-async function fetchHistory(): Promise<HistoryResponse | null> {
+async function fetchHistory(userId: string): Promise<HistoryResponse | null> {
   try {
-    const predictions = await getPredictions();
+    const predictions = await getPredictions(userId);
     const metrics = calculateAggregateMetrics(predictions);
     console.log('[history/page.tsx] History loaded', {
       predictionsCount: predictions.length,
@@ -45,7 +47,11 @@ function calculateError(record: PredictionRecord): number | null {
 }
 
 export default async function HistoryPage() {
-  const data = await fetchHistory();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const data = await fetchHistory(user.id);
 
   if (!data) {
     return (

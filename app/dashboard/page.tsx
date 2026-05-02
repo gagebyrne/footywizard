@@ -18,8 +18,8 @@ export const dynamic = 'force-dynamic';
 
 const fpl = new FplFetch();
 
-async function fetchOptimization(squadPlayerIds: number[]): Promise<OptimizeResponse | null> {
-  const result = await runOptimization(squadPlayerIds);
+async function fetchOptimization(squadPlayerIds: number[], userId: string): Promise<OptimizeResponse | null> {
+  const result = await runOptimization(squadPlayerIds, userId);
   if (!result.ok) {
     console.error('[dashboard/page.tsx] Optimization failed:', result.error.error);
     return null;
@@ -110,7 +110,7 @@ export default async function DashboardPage() {
   if (playerIds.length < 15) redirect('/team');
 
   const [data, fixtures, bootstrapData] = await Promise.all([
-    fetchOptimization(playerIds),
+    fetchOptimization(playerIds, user.id),
     fetchFixtures(),
     fetchBootstrapData(),
   ]);
