@@ -1,5 +1,6 @@
 import type { OptimizeResponse } from '@/lib/types/optimizer';
 import { WizardBall } from './wizard-ball';
+import { CountUp } from './count-up';
 
 interface BroadsheetMastheadProps {
   data: OptimizeResponse;
@@ -41,27 +42,32 @@ export function BroadsheetMasthead({ data, gameweek, deadline }: BroadsheetMasth
           </div>
         </div>
         <div className="flex gap-7 sm:gap-9 items-end">
-          <Stat
-            label="Projected"
-            value={data.expectedPoints.toFixed(1)}
-            suffix="pts"
-          />
+          <Stat label="Projected" numeric={data.expectedPoints} suffix="pts" />
           <Stat label="Formation" value={data.formation} />
-          <Stat label="Squad value" value={`£${squadValue.toFixed(1)}`} suffix="m" />
+          <Stat label="Squad value" prefix="£" numeric={squadValue} suffix="m" />
         </div>
       </div>
     </header>
   );
 }
 
-function Stat({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
+interface StatProps {
+  label: string;
+  value?: string;
+  numeric?: number;
+  prefix?: string;
+  suffix?: string;
+}
+
+function Stat({ label, value, numeric, prefix, suffix }: StatProps) {
   return (
     <div>
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ink-mute)] mb-0.5">
         {label}
       </p>
       <p className="font-serif font-extrabold text-[32px] sm:text-[36px] tracking-[-0.03em] leading-none text-[var(--ink)]">
-        {value}
+        {prefix}
+        {numeric !== undefined ? <CountUp target={numeric} /> : value}
         {suffix && (
           <span className="text-[0.55em] font-medium ml-1 text-[var(--ink-soft)]">{suffix}</span>
         )}

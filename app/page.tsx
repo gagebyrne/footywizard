@@ -31,6 +31,15 @@ const features = [
 
 const errorSeries = [6.1, 5.4, 4.8, 5.9, 4.2, 3.8, 5.2, 4.4, 3.9, 4.6];
 
+const errorPoints = errorSeries.map((v, i, arr) => ({
+  x: (i / (arr.length - 1)) * 196 + 2,
+  y: 70 - v * 6,
+}));
+
+const errorLinePath = errorPoints
+  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+  .join(' ');
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] px-8 sm:px-12 lg:px-20 py-7 pb-10">
@@ -69,17 +78,29 @@ export default function LandingPage() {
         {/* Hero grid */}
         <div className="pt-12 sm:pt-16 pb-10 grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8 lg:gap-14 items-center">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--ink-mute)]">
+            <p
+              className="landing-item font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--ink-mute)]"
+              style={{ animation: 'landing-enter 0.6s ease-out 0.1s both' }}
+            >
               Volume XXI · Gameweek 21 · Saturday Edition
             </p>
-            <h1 className="font-serif font-extrabold leading-[0.86] tracking-[-0.045em] mt-3.5 text-[64px] sm:text-[88px] lg:text-[110px]">
+            <h1
+              className="landing-item font-serif font-extrabold leading-[0.86] tracking-[-0.045em] mt-3.5 text-[64px] sm:text-[88px] lg:text-[110px]"
+              style={{ animation: 'landing-enter 0.6s ease-out 0.2s both' }}
+            >
               Stop guessing.<br />
               <span className="italic font-bold text-[var(--grass)]">Start solving.</span>
             </h1>
-            <p className="font-serif italic text-[var(--ink-soft)] leading-[1.4] mt-5 max-w-[540px] text-lg sm:text-[22px]">
+            <p
+              className="landing-item font-serif italic text-[var(--ink-soft)] leading-[1.4] mt-5 max-w-[540px] text-lg sm:text-[22px]"
+              style={{ animation: 'landing-enter 0.6s ease-out 0.38s both' }}
+            >
               Football made magical. Feed FootyWizard your squad and a maths-obsessed solver returns the highest-scoring eleven, the right captain, and the one transfer you should actually make this week.
             </p>
-            <div className="flex flex-wrap gap-3.5 mt-7">
+            <div
+              className="landing-item flex flex-wrap gap-3.5 mt-7"
+              style={{ animation: 'landing-enter 0.6s ease-out 0.52s both' }}
+            >
               <Link
                 href="/login"
                 className="font-mono text-xs uppercase tracking-[0.16em] bg-[var(--ink)] text-[var(--paper)] px-5 py-3.5 hover:opacity-90 transition-opacity"
@@ -97,8 +118,11 @@ export default function LandingPage() {
 
           {/* Prediction error card */}
           <div
-            className="bg-[var(--paper-hi)] p-5"
-            style={{ border: '2px solid var(--ink)' }}
+            className="landing-item bg-[var(--paper-hi)] p-5"
+            style={{
+              border: '2px solid var(--ink)',
+              animation: 'landing-enter 0.6s ease-out 0.35s both',
+            }}
           >
             <p className="eyebrow">Last 10 gameweeks · prediction error</p>
             <div className="font-serif font-extrabold text-[30px] tracking-[-0.02em] mt-1 text-[var(--ink)]">
@@ -109,31 +133,26 @@ export default function LandingPage() {
             </div>
             <svg viewBox="0 0 200 80" className="w-full mt-3 block" preserveAspectRatio="none">
               <line x1="0" y1="40" x2="200" y2="40" stroke="var(--ink-mute)" strokeWidth="0.5" strokeDasharray="2 2" />
-              {errorSeries.map((v, i, arr) => {
-                const x = (i / (arr.length - 1)) * 196 + 2;
-                const y = 70 - v * 6;
-                const next = arr[i + 1];
-                return (
-                  <g key={i}>
-                    {next != null && (
-                      <line
-                        x1={x}
-                        y1={y}
-                        x2={((i + 1) / (arr.length - 1)) * 196 + 2}
-                        y2={70 - next * 6}
-                        stroke="var(--ink)"
-                        strokeWidth="1.5"
-                      />
-                    )}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={2.5}
-                      fill={i === arr.length - 1 ? 'var(--grass)' : 'var(--ink)'}
-                    />
-                  </g>
-                );
-              })}
+              <path
+                d={errorLinePath}
+                fill="none"
+                stroke="var(--ink)"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                className="chart-line"
+                style={{ strokeDasharray: 1000, animation: 'chart-line-draw 1s ease-out 0.6s both' }}
+              />
+              {errorPoints.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={p.x}
+                  cy={p.y}
+                  r={2.5}
+                  fill={i === errorPoints.length - 1 ? 'var(--grass)' : 'var(--ink)'}
+                  className="chart-dot"
+                  style={{ animation: `chart-dot-enter 0.15s ease-out ${0.9 + i * 0.06}s both` }}
+                />
+              ))}
             </svg>
             <div
               className="flex justify-between mt-3.5 pt-3.5"
@@ -161,9 +180,10 @@ export default function LandingPage() {
           {features.map((f, i) => (
             <div
               key={f.title}
-              className="px-4 py-5 lg:py-0"
+              className="landing-item px-4 py-5 lg:py-0"
               style={{
                 borderRight: i < features.length - 1 ? '1px solid var(--paper-lo)' : 'none',
+                animation: `landing-enter 0.5s ease-out ${0.55 + i * 0.1}s both`,
               }}
             >
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--grass)]">
