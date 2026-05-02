@@ -80,7 +80,7 @@ export function ChalkPlayer({
     >
       {isCaptain && (
         <div
-          className="absolute -top-2.5 -right-2 z-10 grid place-items-center font-serif italic font-extrabold"
+          className="captain-badge absolute -top-2.5 -right-2 z-10 grid place-items-center font-serif italic font-extrabold"
           style={{
             width: 22,
             height: 22,
@@ -90,6 +90,8 @@ export function ChalkPlayer({
             border: '2px solid var(--ink)',
             fontSize: 13,
             boxShadow: '0 2px 0 rgba(0,0,0,0.3)',
+            animation: 'captain-pulse 2.5s ease-in-out 2s infinite',
+            transformOrigin: 'center',
           }}
         >
           C
