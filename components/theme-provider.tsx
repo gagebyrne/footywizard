@@ -35,6 +35,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const toggle = useCallback(() => {
+    document.documentElement.setAttribute('data-theme-transitioning', '');
+    setTimeout(() => {
+      document.documentElement.removeAttribute('data-theme-transitioning');
+    }, 400);
     setTheme((prev) => {
       const next: Theme = prev === 'light' ? 'dark' : 'light';
       try {

@@ -96,52 +96,60 @@ export function FormationPitch({
 
   return (
     <div className="relative w-full mx-auto" style={{ maxWidth: 480 }}>
-      {/* Chalk pitch */}
+      {/* Chalk pitch — outer div has no overflow:hidden so tooltips can escape.
+           The grass background and chalk SVG live in their own clipped layer. */}
       <div
-        className="relative overflow-hidden"
+        className="relative"
         style={{
           aspectRatio: '4/5',
-          background:
-            'radial-gradient(ellipse at center top, #3F8A4D 0%, #2F6E3B 50%, #1A3F22 100%)',
           border: '2px solid var(--ink)',
         }}
       >
-        {/* Faint vertical mowing pattern */}
+        {/* Visual background layer — clipped to pitch bounds, pointer-events off */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 overflow-hidden pointer-events-none"
           style={{
-            backgroundImage:
-              'repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px)',
+            background:
+              'radial-gradient(ellipse at center top, #3F8A4D 0%, #2F6E3B 50%, #1A3F22 100%)',
           }}
-        />
-
-        {/* Chalk lines */}
-        <svg
-          className="absolute inset-0 w-full h-full"
-          style={{ opacity: 0.55 }}
-          viewBox="0 0 300 400"
-          preserveAspectRatio="none"
         >
-          <defs>
-            <filter id="chalk-fx">
-              <feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" />
-              <feDisplacementMap in="SourceGraphic" scale="1.5" />
-            </filter>
-          </defs>
-          <g stroke="#F2EBDD" strokeWidth="1.5" fill="none" filter="url(#chalk-fx)">
-            {/* boundary first, then penalty boxes, then centre details */}
-            <rect x="6" y="6" width="288" height="388"      className="chalk-line" style={chalkAnim('0s',    '0.55s')} />
-            <line x1="6" y1="200" x2="294" y2="200"         className="chalk-line" style={chalkAnim('0.15s', '0.28s')} />
-            <rect x="60" y="6" width="180" height="60"       className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
-            <rect x="60" y="334" width="180" height="60"     className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
-            <rect x="105" y="6" width="90" height="22"       className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
-            <rect x="105" y="372" width="90" height="22"     className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
-            <circle cx="150" cy="200" r="40"                 className="chalk-line" style={chalkAnim('0.35s', '0.35s')} />
-            <circle cx="150" cy="200" r="2" fill="#F2EBDD" />
-            <path d="M 110 66 Q 150 96 190 66"               className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
-            <path d="M 110 334 Q 150 304 190 334"            className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
-          </g>
-        </svg>
+          {/* Faint vertical mowing pattern */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px)',
+            }}
+          />
+
+          {/* Chalk lines */}
+          <svg
+            className="absolute inset-0 w-full h-full"
+            style={{ opacity: 0.55 }}
+            viewBox="0 0 300 400"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <filter id="chalk-fx">
+                <feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" />
+                <feDisplacementMap in="SourceGraphic" scale="1.5" />
+              </filter>
+            </defs>
+            <g stroke="#F2EBDD" strokeWidth="1.5" fill="none" filter="url(#chalk-fx)">
+              {/* boundary first, then penalty boxes, then centre details */}
+              <rect x="6" y="6" width="288" height="388"      className="chalk-line" style={chalkAnim('0s',    '0.55s')} />
+              <line x1="6" y1="200" x2="294" y2="200"         className="chalk-line" style={chalkAnim('0.15s', '0.28s')} />
+              <rect x="60" y="6" width="180" height="60"       className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
+              <rect x="60" y="334" width="180" height="60"     className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
+              <rect x="105" y="6" width="90" height="22"       className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
+              <rect x="105" y="372" width="90" height="22"     className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
+              <circle cx="150" cy="200" r="40"                 className="chalk-line" style={chalkAnim('0.35s', '0.35s')} />
+              <circle cx="150" cy="200" r="2" fill="#F2EBDD" />
+              <path d="M 110 66 Q 150 96 190 66"               className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
+              <path d="M 110 334 Q 150 304 190 334"            className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
+            </g>
+          </svg>
+        </div>
 
         {/* Pitch label corners */}
         <div

@@ -16,6 +16,7 @@
   --grass: #2f6e3b;
   --chalk: #f2ebdd;
   --red: #b0301f;
+  --red-rule: var(--red);
   --captain-ink: #f2ebdd;
 }
 
@@ -54,7 +55,22 @@ body {
   color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Applied briefly by ThemeProvider during the toggle — sweeps all colour
+   properties on every element, then the attribute is removed so it never
+   interferes with hover states or running animations. */
+[data-theme-transitioning],
+[data-theme-transitioning] *,
+[data-theme-transitioning] *::before,
+[data-theme-transitioning] *::after {
+  transition:
+    color 300ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease,
+    fill 300ms ease,
+    stroke 300ms ease,
+    box-shadow 300ms ease !important;
 }
 
 .font-serif {
