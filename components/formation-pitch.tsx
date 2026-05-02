@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { Player, Fixture, Team } from '@/lib/types/fpl';
 import { ChalkPlayer } from './chalk-player';
 import { ChalkBenchRow } from './chalk-bench';
@@ -27,6 +27,13 @@ const FORMATIONS: Record<string, { def: number; mid: number; fwd: number }> = {
 
 function calcXP(player: Player) {
   return parseFloat(player.form || '0') * 0.6 + parseFloat(player.points_per_game || '0') * 0.4;
+}
+
+function chalkAnim(delay: string, duration: string): React.CSSProperties {
+  return {
+    strokeDasharray: 1500,
+    animation: `chalk-draw ${duration} ease-in-out ${delay} both`,
+  };
 }
 
 function EmptySlot() {
@@ -60,11 +67,14 @@ export function FormationPitch({
 
   const formationStructure = FORMATIONS[formation] || { def: 4, mid: 4, fwd: 2 };
 
-  const renderRow = (players: Player[], count: number) => {
+  const renderRow = (players: Player[], count: number, rowDelay: string) => {
     const filled = players.slice(0, count);
     const empties = Math.max(0, count - filled.length);
     return (
-      <div className="flex justify-evenly items-center gap-2 px-2">
+      <div
+        className="pitch-row flex justify-evenly items-center gap-2 px-2"
+        style={{ animation: `pitch-row-enter 0.4s ease-out ${rowDelay} both` }}
+      >
         {filled.map((p) => (
           <ChalkPlayer
             key={p.id}
@@ -119,16 +129,17 @@ export function FormationPitch({
             </filter>
           </defs>
           <g stroke="#F2EBDD" strokeWidth="1.5" fill="none" filter="url(#chalk-fx)">
-            <rect x="6" y="6" width="288" height="388" />
-            <line x1="6" y1="200" x2="294" y2="200" />
-            <circle cx="150" cy="200" r="40" />
+            {/* boundary first, then penalty boxes, then centre details */}
+            <rect x="6" y="6" width="288" height="388"      className="chalk-line" style={chalkAnim('0s',    '0.55s')} />
+            <line x1="6" y1="200" x2="294" y2="200"         className="chalk-line" style={chalkAnim('0.15s', '0.28s')} />
+            <rect x="60" y="6" width="180" height="60"       className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
+            <rect x="60" y="334" width="180" height="60"     className="chalk-line" style={chalkAnim('0.2s',  '0.3s')}  />
+            <rect x="105" y="6" width="90" height="22"       className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
+            <rect x="105" y="372" width="90" height="22"     className="chalk-line" style={chalkAnim('0.28s', '0.22s')} />
+            <circle cx="150" cy="200" r="40"                 className="chalk-line" style={chalkAnim('0.35s', '0.35s')} />
             <circle cx="150" cy="200" r="2" fill="#F2EBDD" />
-            <rect x="60" y="6" width="180" height="60" />
-            <rect x="105" y="6" width="90" height="22" />
-            <rect x="60" y="334" width="180" height="60" />
-            <rect x="105" y="372" width="90" height="22" />
-            <path d="M 110 66 Q 150 96 190 66" />
-            <path d="M 110 334 Q 150 304 190 334" />
+            <path d="M 110 66 Q 150 96 190 66"               className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
+            <path d="M 110 334 Q 150 304 190 334"            className="chalk-line" style={chalkAnim('0.42s', '0.18s')} />
           </g>
         </svg>
 
@@ -146,13 +157,15 @@ export function FormationPitch({
           XI · {formation}
         </div>
 
-        {/* Players */}
+        {/* Players — stagger bottom-to-top after lines finish drawing (~0.7s) */}
         <div className="relative h-full flex flex-col justify-evenly py-6 sm:py-8">
-          {/* FWD on top of pitch (mirror of design) */}
-          {renderRow(forwards, formationStructure.fwd)}
-          {renderRow(midfielders, formationStructure.mid)}
-          {renderRow(defenders, formationStructure.def)}
-          <div className="flex justify-center">
+          {renderRow(forwards, formationStructure.fwd, '1.3s')}
+          {renderRow(midfielders, formationStructure.mid, '1.1s')}
+          {renderRow(defenders, formationStructure.def, '0.9s')}
+          <div
+            className="pitch-row flex justify-center"
+            style={{ animation: 'pitch-row-enter 0.4s ease-out 0.7s both' }}
+          >
             {gk ? (
               <ChalkPlayer
                 player={gk}
