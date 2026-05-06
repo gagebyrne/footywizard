@@ -1,6 +1,5 @@
 import FplFetch from 'fpl-fetch';
 import type { Fixture } from '@/lib/types/fpl';
-import { applyPositionOverride } from '@/lib/optimizer/fixture-difficulty';
 
 /**
  * Fixtures endpoint
@@ -17,12 +16,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventParam = searchParams.get('event');
 
-    const [fixturesRaw, bootstrap] = await Promise.all([
-      fpl.getFixtures(),
-      fpl.getBootstrapData(),
-    ]);
+    const fixturesRaw = await fpl.getFixtures();
 
-    let fixtures: Fixture[] = applyPositionOverride(fixturesRaw, bootstrap.teams);
+    let fixtures: Fixture[] = fixturesRaw;
 
     if (eventParam) {
       const eventId = Number(eventParam);

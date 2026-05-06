@@ -4,7 +4,6 @@ import type { OptimizeResponse, ConstraintStatus } from '@/lib/types/optimizer';
 import { calculateExpectedPoints } from '@/lib/optimizer/expected-points';
 import { optimizeAllFormations } from '@/lib/optimizer/ilp-solver';
 import { VALID_FORMATIONS } from '@/lib/optimizer/formation-validator';
-import { applyPositionOverride } from '@/lib/optimizer/fixture-difficulty';
 import { savePrediction } from '@/lib/history/predictions';
 
 export interface OptimizationError {
@@ -66,7 +65,7 @@ export async function runOptimization(squadPlayerIds?: number[], userId?: string
     }
 
     const allFixturesRaw = await fpl.getFixtures();
-    const allFixtures = applyPositionOverride(allFixturesRaw, teams);
+    const allFixtures = allFixturesRaw;
     const fixtures: Fixture[] = allFixtures.filter((f) => f.event === currentEvent.id);
 
     // Pre-filter the pool: drop unavailables and players with no fixture this GW.
