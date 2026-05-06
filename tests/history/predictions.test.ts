@@ -44,6 +44,7 @@ interface TestRow {
   timestamp: string;
   total_expected_points: number;
   total_actual_points: number | null;
+  fpl_expected_points: number | null;
   formation: string | null;
   captain_player_id: number;
   captain_player_name: string;
@@ -64,7 +65,7 @@ function setupWriteMocks() {
   mockEqUpdate.mockResolvedValue({ error: null });
 }
 
-function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, totalActual: number | null = null): TestRow {
+function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, totalActual: number | null = null, fplExpectedPoints: number | null = null): TestRow {
   return {
     id: `row-gw${gameweek}`,
     user_id: TEST_USER_ID,
@@ -72,6 +73,7 @@ function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, t
     timestamp: new Date().toISOString(),
     total_expected_points: players.reduce((s, p) => s + p.expectedPoints, 0),
     total_actual_points: totalActual,
+    fpl_expected_points: fplExpectedPoints,
     formation: '4-4-2',
     captain_player_id: captainId,
     captain_player_name: players.find(p => p.playerId === captainId)?.playerName ?? '',
@@ -136,6 +138,32 @@ describe('savePrediction', () => {
 
     const [upsertData] = mockUpsert.mock.calls[0];
     expect(upsertData.players[0].expectedPoints).toBe(0);
+  });
+
+  it('should store fpl_expected_points as sum of ep_this across lineup', async () => {
+    const lineup: Player[] = [
+      { id: 1, web_name: 'Salah', ep_next: '8.5', ep_this: '7.2' } as Player,
+      { id: 2, web_name: 'Haaland', ep_next: '9.2', ep_this: '10.1' } as Player,
+    ];
+    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
+
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 65.5);
+
+    const [upsertData] = mockUpsert.mock.calls[0];
+    expect(upsertData.fpl_expected_points).toBeCloseTo(17.3);
+  });
+
+  it('should treat ep_this null as 0 in fpl_expected_points sum', async () => {
+    const lineup: Player[] = [
+      { id: 1, web_name: 'Salah', ep_this: '7.2' } as Player,
+      { id: 2, web_name: 'Haaland', ep_this: null } as Player,
+    ];
+    const captain: Player = { id: 1, web_name: 'Salah' } as Player;
+
+    await savePrediction(TEST_USER_ID, 1, lineup, captain, 50.0);
+
+    const [upsertData] = mockUpsert.mock.calls[0];
+    expect(upsertData.fpl_expected_points).toBeCloseTo(7.2);
   });
 
   it('should not throw when upsert fails', async () => {
@@ -261,6 +289,34 @@ describe('backfillActuals', () => {
     // GW1 (index 1): 10 * 2 = 20
     expect(result[1].gameweek).toBe(1);
     expect(result[1].totalActualPoints).toBe(20);
+  });
+
+  it('should include fplExpectedPoints in returned records when stored', async () => {
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null, 17.3)];
+    setupSelectMock(rows);
+
+    mockGetBootstrapData.mockResolvedValue({
+      events: [{ id: 1, finished: false }],
+      elements: [], teams: [],
+    });
+
+    const result = await backfillActuals(TEST_USER_ID);
+
+    expect(result[0].fplExpectedPoints).toBeCloseTo(17.3);
+  });
+
+  it('should omit fplExpectedPoints when column is null (old rows)', async () => {
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null, null)];
+    setupSelectMock(rows);
+
+    mockGetBootstrapData.mockResolvedValue({
+      events: [{ id: 1, finished: false }],
+      elements: [], teams: [],
+    });
+
+    const result = await backfillActuals(TEST_USER_ID);
+
+    expect(result[0].fplExpectedPoints).toBeUndefined();
   });
 
   it('should return empty array when user has no predictions', async () => {

@@ -21,6 +21,7 @@ export interface PredictionRecord {
   predictions: PlayerPrediction[];
   totalExpectedPoints: number;
   totalActualPoints?: number;
+  fplExpectedPoints?: number;
   formation?: string;
   captain: {
     playerId: number;
@@ -42,6 +43,7 @@ interface PredictionRow {
   timestamp: string;
   total_expected_points: number;
   total_actual_points: number | null;
+  fpl_expected_points: number | null;
   formation: string | null;
   captain_player_id: number;
   captain_player_name: string;
@@ -55,6 +57,7 @@ function rowToRecord(row: PredictionRow): PredictionRecord {
     predictions: row.players,
     totalExpectedPoints: row.total_expected_points,
     ...(row.total_actual_points !== null && { totalActualPoints: row.total_actual_points }),
+    ...(row.fpl_expected_points !== null && { fplExpectedPoints: row.fpl_expected_points }),
     ...(row.formation && { formation: row.formation }),
     captain: {
       playerId: row.captain_player_id,
@@ -80,6 +83,11 @@ export async function savePrediction(
       expectedPoints: player.ep_next ? parseFloat(player.ep_next) : 0,
     }));
 
+    const fplExpectedPoints = lineup.reduce(
+      (sum, p) => sum + (p.ep_this ? parseFloat(p.ep_this) : 0),
+      0
+    );
+
     const { error } = await supabaseAdmin
       .from('predictions')
       .upsert(
@@ -88,6 +96,7 @@ export async function savePrediction(
           gameweek,
           timestamp: new Date().toISOString(),
           total_expected_points: expectedPoints,
+          fpl_expected_points: fplExpectedPoints,
           formation: formation ?? null,
           captain_player_id: captain.id,
           captain_player_name: captain.web_name,
