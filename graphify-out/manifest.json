@@ -1,0 +1,374 @@
+{
+  "/home/gagebd/Documents/code/footywizard/eslint.config.mjs": {
+    "mtime": 1777264081.937068,
+    "hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "/home/gagebd/Documents/code/footywizard/postcss.config.mjs": {
+    "mtime": 1777264081.941978,
+    "hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "/home/gagebd/Documents/code/footywizard/next.config.ts": {
+    "mtime": 1777264874.0599449,
+    "hash": "c3ca068ffe31439c6f55220f67abcf43"
+  },
+  "/home/gagebd/Documents/code/footywizard/proxy.ts": {
+    "mtime": 1777265976.4214323,
+    "hash": "95c8974f1dfb5f47efd5fd65ac9d378d"
+  },
+  "/home/gagebd/Documents/code/footywizard/next-env.d.ts": {
+    "mtime": 1777517552.7734423,
+    "hash": "2a74d3909800ca5467fa83b0ab4a4890"
+  },
+  "/home/gagebd/Documents/code/footywizard/vitest.config.ts": {
+    "mtime": 1777433130.2348626,
+    "hash": "5ebd328182d08c33a4d31f6677d02694"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/layout.tsx": {
+    "mtime": 1777521712.8410017,
+    "hash": "fd95ca5cecab849c3094e2fa84fde024"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/page.tsx": {
+    "mtime": 1778035720.9295561,
+    "hash": "a187e865c2116d2ad189161f85fe37ff"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/api/fpl/bootstrap-static/route.ts": {
+    "mtime": 1777264081.9315732,
+    "hash": "674d901b5d7ceb515fd008f1f0d49bc1"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/api/fpl/element-summary/[id]/route.ts": {
+    "mtime": 1777264081.9320977,
+    "hash": "9e19795de125b0c1c85b96ffa217fed4"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/api/fpl/fixtures/route.ts": {
+    "mtime": 1778086429.283002,
+    "hash": "083e2af413f9cbbf44144b3d165e0561"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/api/history/route.ts": {
+    "mtime": 1777702069.7674456,
+    "hash": "539e5e824989636ba11f3f23e95c0dcc"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/api/optimize/route.ts": {
+    "mtime": 1777702064.1254714,
+    "hash": "3c320e9b8e1564d3d49405e78b441324"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/history/loading.tsx": {
+    "mtime": 1777521712.8400018,
+    "hash": "f93c0db1ff8deb3e6f1f67d50f89cfa2"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/history/page.tsx": {
+    "mtime": 1778126187.299954,
+    "hash": "80de5a38a2830ac7e9268a584e57f273"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/dashboard/actions.ts": {
+    "mtime": 1777266015.868532,
+    "hash": "e9bdaab5072d32e813a25e20dc331a19"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/dashboard/page.tsx": {
+    "mtime": 1777702058.25548,
+    "hash": "d318c69d0779ab66cee6da72c0326a24"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/login/actions.ts": {
+    "mtime": 1777265989.2294648,
+    "hash": "5498490396e19b3dc56ea135228021d9"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/login/page.tsx": {
+    "mtime": 1777521712.8410017,
+    "hash": "43d5538445eab9697ee644d304e8b14f"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/auth/callback/route.ts": {
+    "mtime": 1777265981.811446,
+    "hash": "8308337f5fd94c32c29476ea277a03ca"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/team/actions.ts": {
+    "mtime": 1777267665.437661,
+    "hash": "391d7b55680f27cef01b9b31e4c3da02"
+  },
+  "/home/gagebd/Documents/code/footywizard/app/team/page.tsx": {
+    "mtime": 1777521712.842002,
+    "hash": "4cf5176acc7424b980610ce500f67f3b"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/cache-handler.tsx": {
+    "mtime": 1777264081.9340637,
+    "hash": "d0acd50dee93dda5d3723d46abcfba3b"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/chalk-bench.tsx": {
+    "mtime": 1777521712.8430018,
+    "hash": "60f11c80cbea75ea49b64d003b6eb5b1"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/error-boundary.tsx": {
+    "mtime": 1777521712.8440018,
+    "hash": "4967ee01f8d8eec4eaa75754cc637c8b"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/player-portrait.tsx": {
+    "mtime": 1777521712.8450017,
+    "hash": "3342657d5fb3b547a71a6892c19140ba"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/team-builder.tsx": {
+    "mtime": 1777521712.8460019,
+    "hash": "a1d7dda04117ec63d8289443f2417e66"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/transfer-targets.tsx": {
+    "mtime": 1777521712.8460019,
+    "hash": "9703653fc9a0081bd6e054e0b1105812"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/verdict-card.tsx": {
+    "mtime": 1777521712.8460019,
+    "hash": "99bc4c81ef8a1e963229ebe9bbe0bd86"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/wizard-ball.tsx": {
+    "mtime": 1777521712.8470018,
+    "hash": "5dd0ca2837ece1a23a2052ad22313414"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/mobile-nav.tsx": {
+    "mtime": 1777704269.2207818,
+    "hash": "98f2befa6f3a499c3a5b71945d17b086"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/app-nav.tsx": {
+    "mtime": 1777704283.1638107,
+    "hash": "bf130b85872dc4c45903b98661ac1601"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/fixture-outlook.tsx": {
+    "mtime": 1777704372.2719955,
+    "hash": "d240780e3f83c4cc731c228ee32762e1"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/broadsheet-masthead.tsx": {
+    "mtime": 1778035720.9295561,
+    "hash": "fabff55505d92dd3f1da43b06b2de678"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/count-up.tsx": {
+    "mtime": 1778035720.930556,
+    "hash": "18c3ee4197aae764d7bf53f358241259"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/formation-pitch.tsx": {
+    "mtime": 1778035720.931556,
+    "hash": "48571da85d4384d0c6133fd65937f5a0"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/history-chart.tsx": {
+    "mtime": 1778035720.9325562,
+    "hash": "dcd5cecae158449e9f10c016917cced5"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/theme-provider.tsx": {
+    "mtime": 1778035720.933556,
+    "hash": "b5b5f35468862e5b6f12507657f3cdd2"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/chalk-player.tsx": {
+    "mtime": 1778125332.7174647,
+    "hash": "4b979670f9177dbd8e91a1951f3c8394"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/badge.tsx": {
+    "mtime": 1777264081.935978,
+    "hash": "d418e7d17e73d698299284a0e46e3e9f"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/button.tsx": {
+    "mtime": 1777264081.937068,
+    "hash": "4870ecf032591e7dc71cd4e3c36bb683"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/card.tsx": {
+    "mtime": 1777264081.937068,
+    "hash": "9f1da48791217371e13fa28ce90ae444"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/popover.tsx": {
+    "mtime": 1777264081.937068,
+    "hash": "80a5a48c7c392d6e8a5cbf8e733b4da7"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/skeleton.tsx": {
+    "mtime": 1777264081.937068,
+    "hash": "c16d8ac1e08656426fb248b601772ad1"
+  },
+  "/home/gagebd/Documents/code/footywizard/components/ui/table.tsx": {
+    "mtime": 1777264081.937068,
+    "hash": "0ae7dbae059df3f7e3faa6a93e81267f"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/cache.ts": {
+    "mtime": 1777264081.937068,
+    "hash": "2c04c5b85fde50aad4694ba6a2b13261"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/utils.ts": {
+    "mtime": 1777308848.586182,
+    "hash": "1c2125ac94c018cec5872e363b5c9475"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/team-colors.ts": {
+    "mtime": 1777521712.8470018,
+    "hash": "72a1be1af91bbb6e1d3f3d18d2b5077d"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/history/metrics.ts": {
+    "mtime": 1777264081.938567,
+    "hash": "989fa405dc4b6c49be5472ce34032712"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/history/predictions.ts": {
+    "mtime": 1778087144.3701892,
+    "hash": "2058cd85eb636f0f851f1e6a5d0b60a1"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/optimizer/formation-validator.ts": {
+    "mtime": 1777433130.2338624,
+    "hash": "7ad4cd33cfaf3aaa4b25c869ad041d2d"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/optimizer/fixture-difficulty.ts": {
+    "mtime": 1778040642.8489418,
+    "hash": "15f9599d413e60de019a5133fefe5305"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/optimizer/expected-points.ts": {
+    "mtime": 1778086075.4936886,
+    "hash": "f6981a5a05bff54dea7820630008b52c"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/optimizer/run-optimization.ts": {
+    "mtime": 1778086421.8809876,
+    "hash": "45498368964a55c7615253e2612d2066"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/optimizer/ilp-solver.ts": {
+    "mtime": 1778125934.7835271,
+    "hash": "b779e1c5cbad42c803fc52fe41b5c815"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/types/fpl.ts": {
+    "mtime": 1777264081.9395072,
+    "hash": "664ed67f8ffa4b00e532a9e74451f439"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/types/optimizer.ts": {
+    "mtime": 1777433130.2348626,
+    "hash": "aa120bd1eaeb31d206f92cf825c3beb0"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/supabase/client.ts": {
+    "mtime": 1777265960.6283925,
+    "hash": "0fcd46865aa959be0b36035511310e72"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/supabase/server.ts": {
+    "mtime": 1777265965.9084058,
+    "hash": "88210ec946e57676727182d703c4e313"
+  },
+  "/home/gagebd/Documents/code/footywizard/lib/supabase/admin.ts": {
+    "mtime": 1777702024.9895296,
+    "hash": "20ab392cadcbacf74374c4bc4d70870c"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/api/fpl.test.ts": {
+    "mtime": 1777264081.9447694,
+    "hash": "e501f34b755b44026c64e2bee252f6c8"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/api/history.test.ts": {
+    "mtime": 1777264081.9450858,
+    "hash": "bd62b31b6f53682ee1c9bd6cf8fea3a8"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/api/optimize.test.ts": {
+    "mtime": 1777433130.2348626,
+    "hash": "86a14105ede9f065ba5bb021f63d7fc5"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/history/metrics.test.ts": {
+    "mtime": 1777264081.9450858,
+    "hash": "b1e77a15732d6ec791070a8fb558239d"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/history/predictions.test.ts": {
+    "mtime": 1778087144.371189,
+    "hash": "b4168b027f5e5a96227eaa99585ce567"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/diagnose.test.ts": {
+    "mtime": 1777433079.5597131,
+    "hash": "65d73e7936502a68d441d5ae03c6f6e9"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/ilp-solver.test.ts": {
+    "mtime": 1777433153.6529346,
+    "hash": "7362e60f5dddef805513bcb57101d7e4"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/multi-formation.test.ts": {
+    "mtime": 1777433161.97196,
+    "hash": "7c9747c728112e28ef4195d5038a63a1"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/fixture-difficulty.test.ts": {
+    "mtime": 1778040707.837073,
+    "hash": "b92c8ab878fa215b05d20e850c8ab246"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/expected-points.test.ts": {
+    "mtime": 1778086033.3272943,
+    "hash": "a80f21c48865dee25934bfb738084584"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/captain-multiplier.test.ts": {
+    "mtime": 1778125874.4524708,
+    "hash": "a3ab449bdc66c92cb891307d278a2420"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/optimizer/captain-aware.test.ts": {
+    "mtime": 1778125893.2574883,
+    "hash": "5ab74b523eedee14af3ed5f44fa1b245"
+  },
+  "/home/gagebd/Documents/code/footywizard/tests/components/chalk-player.test.ts": {
+    "mtime": 1778125343.2994475,
+    "hash": "f20f4d4e1bcc724cf19e68f40abf48d6"
+  },
+  "/home/gagebd/Documents/code/footywizard/supabase/migrations/20260502_create_predictions.sql": {
+    "mtime": 1777702018.2725396,
+    "hash": "313abe53045a203cd83508492ed89f3d"
+  },
+  "/home/gagebd/Documents/code/footywizard/README.md": {
+    "mtime": 1777330493.9387317,
+    "hash": "acc342f58bc078b92db530d71dcee947"
+  },
+  "/home/gagebd/Documents/code/footywizard/CONTEXT.md": {
+    "mtime": 1778038971.0678203,
+    "hash": "401de8d93bb56f0e288c2b4b14b87c32"
+  },
+  "/home/gagebd/Documents/code/footywizard/CLAUDE.md": {
+    "mtime": 1778039245.5022624,
+    "hash": "ac434fb7bd6b396320fe2ee29ca0c0a7"
+  },
+  "/home/gagebd/Documents/code/footywizard/AGENTS.md": {
+    "mtime": 1778085608.7411025,
+    "hash": "02549cec0441689b2078fa27dbbc991a"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/requirements.md": {
+    "mtime": 1777310820.8723452,
+    "hash": "3fb8cc920e73be76c61352588093f792"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/technical.md": {
+    "mtime": 1777310908.8234808,
+    "hash": "37c96deca76c6d043a45c9aa613ffadc"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/adr/0001-xp-signal-point-conversion.md": {
+    "mtime": 1778039037.914927,
+    "hash": "32cd00406b696c66f5ecbd136a261e53"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/adr/0002-ep-this-as-benchmark.md": {
+    "mtime": 1778039052.0229495,
+    "hash": "62279cb7b255bf1bb072f16f739c3d9e"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/agents/issue-tracker.md": {
+    "mtime": 1778039253.8266923,
+    "hash": "b3268117bb0bb6b731632d35d6a1369a"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/agents/triage-labels.md": {
+    "mtime": 1778039260.4712882,
+    "hash": "22add54cb98451c55b20e6b7992d4a85"
+  },
+  "/home/gagebd/Documents/code/footywizard/docs/agents/domain.md": {
+    "mtime": 1778039278.92432,
+    "hash": "46ba863dc03e2a8d79a7a6808c9a00bb"
+  },
+  "/home/gagebd/Documents/code/footywizard/wizard-icon.png": {
+    "mtime": 1777330382.945897,
+    "hash": "fa18223ec082533bc7b095f1f59033be"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/file.svg": {
+    "mtime": 1777264081.942978,
+    "hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/globe.svg": {
+    "mtime": 1777264081.944132,
+    "hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/next.svg": {
+    "mtime": 1777264081.944132,
+    "hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/vercel.svg": {
+    "mtime": 1777264081.944132,
+    "hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/window.svg": {
+    "mtime": 1777264081.944132,
+    "hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/wizard-icon.svg": {
+    "mtime": 1777330382.9378972,
+    "hash": "f79f48a63a49e07567fa20398a4c9114"
+  },
+  "/home/gagebd/Documents/code/footywizard/public/wizard-icon.png": {
+    "mtime": 1777330479.856735,
+    "hash": "fa18223ec082533bc7b095f1f59033be"
+  }
+}
