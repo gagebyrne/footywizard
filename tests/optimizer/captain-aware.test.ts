@@ -148,6 +148,34 @@ function buildBasePool(): Player[] {
   ];
 }
 
+describe('positional captain multiplier', () => {
+  test('FWD beats DEF as captain when xP is equal', () => {
+    // All players have xP=5. FWD multiplier (×1.20) beats DEF (×0.75),
+    // so the FWD in the lineup must be designated captain.
+    const players = buildBasePool();
+    const xp = new Map<number, number>(players.map((pl) => [pl.id, 5.0]));
+
+    const result = optimizeAllFormations(players, xp, 1000);
+    expect(result).not.toBeNull();
+    // Captain must be a FWD (element_type 4), not a DEF or GK.
+    expect(result!.captain!.element_type).toBe(4);
+  });
+
+  test('FWD is captain even when DEF has slightly higher xP', () => {
+    // DEF xP=6, all FWDs xP=5: DEF×0.75=4.5, FWD×1.20=6.0 → FWD wins.
+    const players = buildBasePool();
+    const xp = new Map<number, number>(players.map((pl) => [pl.id, 5.0]));
+    // Give all DEFs a slight xP edge.
+    players
+      .filter((pl) => pl.element_type === 2)
+      .forEach((pl) => xp.set(pl.id, 6.0));
+
+    const result = optimizeAllFormations(players, xp, 1000);
+    expect(result).not.toBeNull();
+    expect(result!.captain!.element_type).toBe(4);
+  });
+});
+
 describe('captain-aware optimizeAllFormations', () => {
   test('selects captain whose 2x bonus is included in totalExpectedPoints', () => {
     const players = buildBasePool();

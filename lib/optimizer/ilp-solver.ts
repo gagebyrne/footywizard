@@ -187,17 +187,20 @@ function compareExact(a: Candidate, b: Candidate): number {
   return a.formationName.localeCompare(b.formationName);
 }
 
-/**
- * Pick captain candidates: top N by xP. With ≤ 30 viable players we use them
- * all; for full-pool optimisation (~600 players) we cap at 30 to keep the
- * outer loop tractable. The optimal captain is always among the high-xP set.
- */
-function captainCandidates(players: Player[], expectedPoints: Map<number, number>, cap = 20): Player[] {
-  const withPoints = players.filter((p) => (expectedPoints.get(p.id) ?? 0) > 0);
-  if (withPoints.length === 0) return [];
-  return [...withPoints]
-    .sort((a, b) => (expectedPoints.get(b.id) ?? 0) - (expectedPoints.get(a.id) ?? 0))
-    .slice(0, cap);
+/** Positional multiplier applied only at captain designation, not lineup selection. */
+export function captainMultiplier(elementType: number): number {
+  if (elementType === 1) return 0.50;
+  if (elementType === 2) return 0.75;
+  if (elementType === 3) return 1.10;
+  return 1.20; // FWD
+}
+
+function designateCaptain(lineup: Player[], expectedPoints: Map<number, number>): Player {
+  return lineup.reduce((best, p) => {
+    const pScore = (expectedPoints.get(p.id) ?? 0) * captainMultiplier(p.element_type);
+    const bestScore = (expectedPoints.get(best.id) ?? 0) * captainMultiplier(best.element_type);
+    return pScore > bestScore ? p : best;
+  });
 }
 
 export function optimizeAllFormations(
@@ -207,28 +210,26 @@ export function optimizeAllFormations(
 ): OptimizationResult | null {
   const startTime = Date.now();
   const formationNames = Object.keys(VALID_FORMATIONS);
-  const captains = captainCandidates(players, expectedPoints);
 
-  if (captains.length === 0) {
+  const hasPositiveXp = players.some((p) => (expectedPoints.get(p.id) ?? 0) > 0);
+  if (!hasPositiveXp) {
     console.warn('[Multi-Formation] No players with positive xP — nothing to optimise');
     return null;
   }
 
-  // Pass 1: exact mode
+  // Pass 1: exact mode — one ILP solve per formation using raw xP.
   const exactCandidates: Candidate[] = [];
   for (const formationName of formationNames) {
     const formation = VALID_FORMATIONS[formationName];
-    for (const captain of captains) {
-      const selected = solveOne(players, formation, expectedPoints, {
-        budgetLimit,
-        partial: false,
-        captainId: captain.id,
-      });
-      if (selected && selected.length === 11) {
-        exactCandidates.push(
-          buildCandidate(selected, captain, formationName, formation, expectedPoints)
-        );
-      }
+    const selected = solveOne(players, formation, expectedPoints, {
+      budgetLimit,
+      partial: false,
+    });
+    if (selected && selected.length === 11) {
+      const captain = designateCaptain(selected, expectedPoints);
+      exactCandidates.push(
+        buildCandidate(selected, captain, formationName, formation, expectedPoints)
+      );
     }
   }
 
@@ -243,17 +244,15 @@ export function optimizeAllFormations(
     const partialCandidates: Candidate[] = [];
     for (const formationName of formationNames) {
       const formation = VALID_FORMATIONS[formationName];
-      for (const captain of captains) {
-        const selected = solveOne(players, formation, expectedPoints, {
-          budgetLimit,
-          partial: true,
-          captainId: captain.id,
-        });
-        if (selected && selected.length > 0) {
-          partialCandidates.push(
-            buildCandidate(selected, captain, formationName, formation, expectedPoints)
-          );
-        }
+      const selected = solveOne(players, formation, expectedPoints, {
+        budgetLimit,
+        partial: true,
+      });
+      if (selected && selected.length > 0) {
+        const captain = designateCaptain(selected, expectedPoints);
+        partialCandidates.push(
+          buildCandidate(selected, captain, formationName, formation, expectedPoints)
+        );
       }
     }
     if (partialCandidates.length === 0) {
@@ -330,11 +329,7 @@ export function solveLineup(
 
   const totalCost = selected.reduce((sum, p) => sum + p.now_cost, 0);
   const baseSum = selected.reduce((sum, p) => sum + (expectedPoints.get(p.id) ?? 0), 0);
-  const captain = selected.reduce((best, p) => {
-    const pPoints = expectedPoints.get(p.id) ?? 0;
-    const bestPoints = expectedPoints.get(best.id) ?? 0;
-    return pPoints > bestPoints ? p : best;
-  });
+  const captain = designateCaptain(selected, expectedPoints);
   const captainXp = expectedPoints.get(captain.id) ?? 0;
 
   return {
