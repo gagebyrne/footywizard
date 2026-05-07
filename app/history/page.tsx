@@ -212,14 +212,14 @@ export default async function HistoryPage() {
               <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--ink)' }}>
-                    {['GW', 'Formation', 'Predicted', 'Actual', 'Error', 'Verdict'].map(
+                    {['GW', 'Formation', 'Predicted', 'FPL xP', 'Actual', 'Error', 'Verdict'].map(
                       (h, i) => (
                         <th
                           key={h}
                           className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold"
                           style={{
                             color: 'var(--ink-mute)',
-                            textAlign: i >= 2 && i <= 4 ? 'right' : 'left',
+                            textAlign: i >= 2 && i <= 5 ? 'right' : 'left',
                             padding: '10px 16px',
                           }}
                         >
@@ -269,6 +269,16 @@ export default async function HistoryPage() {
                           }}
                         >
                           {record.totalExpectedPoints.toFixed(1)}
+                        </td>
+                        <td
+                          className="font-serif text-base"
+                          style={{
+                            color: record.fplExpectedPoints != null ? 'var(--ink-soft)' : 'var(--ink-mute)',
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                          }}
+                        >
+                          {record.fplExpectedPoints != null ? record.fplExpectedPoints.toFixed(1) : '—'}
                         </td>
                         <td
                           className="font-serif font-extrabold text-base"
