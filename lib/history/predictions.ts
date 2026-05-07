@@ -121,106 +121,90 @@ export async function savePrediction(
   }
 }
 
-export async function backfillActuals(userId: string): Promise<PredictionRecord[]> {
-  const startTime = Date.now();
+export async function getPredictions(userId: string): Promise<PredictionRecord[]> {
+  const { data: rows, error } = await supabaseAdmin
+    .from('predictions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('gameweek', { ascending: false });
 
-  try {
-    const { data: rows, error } = await supabaseAdmin
-      .from('predictions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('gameweek', { ascending: false });
-
-    if (error) throw new Error(error.message);
-    if (!rows || rows.length === 0) return [];
-
-    const fpl = getFpl();
-    const bootstrapData = await fpl.getBootstrapData();
-    const finishedGameweeks = new Set(
-      bootstrapData.events.filter((e) => e.finished).map((e) => e.id)
-    );
-
-    let updatedCount = 0;
-    let apiErrors = 0;
-
-    for (const row of rows as PredictionRow[]) {
-      if (!finishedGameweeks.has(row.gameweek) || row.total_actual_points !== null) {
-        continue;
-      }
-
-      let totalActual = 0;
-      let playersFetched = 0;
-      const updatedPlayers = [...row.players];
-
-      for (const prediction of updatedPlayers) {
-        try {
-          const playerSummary = await fpl.getPlayer(prediction.playerId);
-          const historyEntry = playerSummary.history.find((h) => h.round === row.gameweek);
-
-          if (historyEntry) {
-            prediction.actualPoints = historyEntry.total_points;
-            totalActual +=
-              prediction.playerId === row.captain_player_id
-                ? historyEntry.total_points * 2
-                : historyEntry.total_points;
-            playersFetched++;
-          }
-        } catch (error) {
-          console.error('[Predictions] Failed to fetch player summary', {
-            gameweek: row.gameweek,
-            playerId: prediction.playerId,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
-          apiErrors++;
-        }
-      }
-
-      const { error: updateError } = await supabaseAdmin
-        .from('predictions')
-        .update({ players: updatedPlayers, total_actual_points: totalActual })
-        .eq('id', row.id);
-
-      if (updateError) {
-        console.error('[Predictions] Failed to update actuals', {
-          gameweek: row.gameweek,
-          error: updateError.message,
-        });
-      } else {
-        row.players = updatedPlayers;
-        row.total_actual_points = totalActual;
-        updatedCount++;
-
-        console.log('[Predictions] Backfilled actuals for gameweek', {
-          gameweek: row.gameweek,
-          playersFetched,
-          apiErrors,
-          actualTotal: totalActual.toFixed(2),
-        });
-      }
-    }
-
-    console.log('[Predictions] Backfill complete', {
-      updatedGameweeks: updatedCount,
-      totalApiErrors: apiErrors,
-      durationMs: Date.now() - startTime,
-    });
-
-    return (rows as PredictionRow[]).map(rowToRecord);
-  } catch (error) {
-    console.error('[Predictions] Backfill failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-
-    const { data: rows } = await supabaseAdmin
-      .from('predictions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('gameweek', { ascending: false });
-
-    return ((rows ?? []) as PredictionRow[]).map(rowToRecord);
-  }
+  if (error) throw new Error(error.message);
+  return ((rows ?? []) as PredictionRow[]).map(rowToRecord);
 }
 
-export async function getPredictions(userId: string): Promise<PredictionRecord[]> {
-  return backfillActuals(userId);
+export async function backfillActuals(userId: string, gameweek: number): Promise<PredictionRecord> {
+  const startTime = Date.now();
+
+  const { data: rows, error } = await supabaseAdmin
+    .from('predictions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('gameweek', gameweek);
+
+  if (error) throw new Error(error.message);
+  if (!rows || rows.length === 0) throw new Error(`No prediction found for gameweek ${gameweek}`);
+
+  const row = rows[0] as PredictionRow;
+
+  if (row.total_actual_points !== null) return rowToRecord(row);
+
+  const fpl = getFpl();
+  const bootstrapData = await fpl.getBootstrapData();
+  const event = bootstrapData.events.find((e: { id: number; finished: boolean }) => e.id === gameweek);
+
+  if (!event?.finished) return rowToRecord(row);
+
+  let totalActual = 0;
+  let playersFetched = 0;
+  let apiErrors = 0;
+  const updatedPlayers = [...row.players];
+
+  for (const prediction of updatedPlayers) {
+    try {
+      const playerSummary = await fpl.getPlayer(prediction.playerId);
+      const historyEntry = playerSummary.history.find((h: { round: number; total_points: number }) => h.round === gameweek);
+
+      if (historyEntry) {
+        prediction.actualPoints = historyEntry.total_points;
+        totalActual +=
+          prediction.playerId === row.captain_player_id
+            ? historyEntry.total_points * 2
+            : historyEntry.total_points;
+        playersFetched++;
+      }
+    } catch (err) {
+      console.error('[Predictions] Failed to fetch player summary', {
+        gameweek,
+        playerId: prediction.playerId,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+      apiErrors++;
+    }
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('predictions')
+    .update({ players: updatedPlayers, total_actual_points: totalActual })
+    .eq('id', row.id);
+
+  if (updateError) {
+    console.error('[Predictions] Failed to update actuals', {
+      gameweek,
+      error: updateError.message,
+    });
+    return rowToRecord(row);
+  }
+
+  row.players = updatedPlayers;
+  row.total_actual_points = totalActual;
+
+  console.log('[Predictions] Backfilled actuals for gameweek', {
+    gameweek,
+    playersFetched,
+    apiErrors,
+    actualTotal: totalActual.toFixed(2),
+    durationMs: Date.now() - startTime,
+  });
+
+  return rowToRecord(row);
 }

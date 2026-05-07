@@ -22,13 +22,14 @@ vi.mock('fpl-fetch', () => ({
 
 // ─── Supabase Mocks ───────────────────────────────────────────────────────────
 
-const { mockFrom, mockUpsert, mockSelect, mockEqSelect, mockOrder, mockUpdate, mockEqUpdate } =
+const { mockFrom, mockUpsert, mockSelect, mockEqUser, mockOrder, mockEqGameweek, mockUpdate, mockEqUpdate } =
   vi.hoisted(() => ({
     mockFrom: vi.fn(),
     mockUpsert: vi.fn(),
     mockSelect: vi.fn(),
-    mockEqSelect: vi.fn(),
+    mockEqUser: vi.fn(),
     mockOrder: vi.fn(),
+    mockEqGameweek: vi.fn(),
     mockUpdate: vi.fn(),
     mockEqUpdate: vi.fn(),
   }));
@@ -53,10 +54,16 @@ interface TestRow {
 
 const TEST_USER_ID = 'test-user-uuid';
 
-function setupSelectMock(rows: TestRow[]) {
-  mockSelect.mockReturnValue({ eq: mockEqSelect });
-  mockEqSelect.mockReturnValue({ order: mockOrder });
+function setupReadMock(rows: TestRow[]) {
+  mockSelect.mockReturnValue({ eq: mockEqUser });
+  mockEqUser.mockReturnValue({ order: mockOrder, eq: mockEqGameweek });
   mockOrder.mockResolvedValue({ data: rows, error: null });
+}
+
+function setupSingleRowMock(row: TestRow | null) {
+  mockSelect.mockReturnValue({ eq: mockEqUser });
+  mockEqUser.mockReturnValue({ order: mockOrder, eq: mockEqGameweek });
+  mockEqGameweek.mockResolvedValue({ data: row ? [row] : [], error: null });
 }
 
 function setupWriteMocks() {
@@ -65,7 +72,13 @@ function setupWriteMocks() {
   mockEqUpdate.mockResolvedValue({ error: null });
 }
 
-function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, totalActual: number | null = null, fplExpectedPoints: number | null = null): TestRow {
+function makeRow(
+  gameweek: number,
+  players: PlayerPrediction[],
+  captainId = 1,
+  totalActual: number | null = null,
+  fplExpectedPoints: number | null = null
+): TestRow {
   return {
     id: `row-gw${gameweek}`,
     user_id: TEST_USER_ID,
@@ -76,7 +89,7 @@ function makeRow(gameweek: number, players: PlayerPrediction[], captainId = 1, t
     fpl_expected_points: fplExpectedPoints,
     formation: '4-4-2',
     captain_player_id: captainId,
-    captain_player_name: players.find(p => p.playerId === captainId)?.playerName ?? '',
+    captain_player_name: players.find((p) => p.playerId === captainId)?.playerName ?? '',
     players,
   };
 }
@@ -176,6 +189,60 @@ describe('savePrediction', () => {
   });
 });
 
+describe('getPredictions', () => {
+  beforeEach(() => {
+    mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
+    setupWriteMocks();
+    resetFplInstance();
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('should return stored rows without calling the FPL API', async () => {
+    const rows = [
+      makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null),
+      makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, 20),
+    ];
+    setupReadMock(rows);
+
+    const result = await getPredictions(TEST_USER_ID);
+
+    expect(mockGetBootstrapData).not.toHaveBeenCalled();
+    expect(mockGetPlayer).not.toHaveBeenCalled();
+    expect(result).toHaveLength(2);
+  });
+
+  it('should map stored rows to PredictionRecord shape', async () => {
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, 20, 17.3)];
+    setupReadMock(rows);
+
+    const result = await getPredictions(TEST_USER_ID);
+
+    expect(result[0].gameweek).toBe(1);
+    expect(result[0].totalActualPoints).toBe(20);
+    expect(result[0].fplExpectedPoints).toBeCloseTo(17.3);
+    expect(result[0].captain.playerId).toBe(1);
+  });
+
+  it('should return rows with totalActualPoints undefined when column is null', async () => {
+    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null)];
+    setupReadMock(rows);
+
+    const result = await getPredictions(TEST_USER_ID);
+
+    expect(result[0].totalActualPoints).toBeUndefined();
+  });
+
+  it('should return empty array when user has no predictions', async () => {
+    setupReadMock([]);
+
+    const result = await getPredictions(TEST_USER_ID);
+
+    expect(result).toHaveLength(0);
+    expect(mockGetBootstrapData).not.toHaveBeenCalled();
+  });
+});
+
 describe('backfillActuals', () => {
   beforeEach(() => {
     mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
@@ -186,11 +253,11 @@ describe('backfillActuals', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('should backfill actuals for a finished gameweek', async () => {
-    const rows = [makeRow(1, [
+    const row = makeRow(1, [
       { playerId: 1, playerName: 'Salah', expectedPoints: 8.5 },
       { playerId: 2, playerName: 'Haaland', expectedPoints: 9.2 },
-    ], 1)];
-    setupSelectMock(rows);
+    ], 1);
+    setupSingleRowMock(row);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }, { id: 2, finished: false }],
@@ -200,51 +267,50 @@ describe('backfillActuals', () => {
       .mockResolvedValueOnce({ history: [{ round: 1, total_points: 12 }] })
       .mockResolvedValueOnce({ history: [{ round: 1, total_points: 8 }] });
 
-    const result = await backfillActuals(TEST_USER_ID);
+    const result = await backfillActuals(TEST_USER_ID, 1);
 
-    expect(result).toHaveLength(1);
-    expect(result[0].predictions[0].actualPoints).toBe(12);
-    expect(result[0].predictions[1].actualPoints).toBe(8);
+    expect(result.predictions[0].actualPoints).toBe(12);
+    expect(result.predictions[1].actualPoints).toBe(8);
     // Captain (Salah) doubled: (12 * 2) + 8 = 32
-    expect(result[0].totalActualPoints).toBe(32);
+    expect(result.totalActualPoints).toBe(32);
   });
 
-  it('should skip unfinished gameweeks', async () => {
-    const rows = [makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1)];
-    setupSelectMock(rows);
+  it('should return the row unmodified when gameweek is not finished', async () => {
+    const row = makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1);
+    setupSingleRowMock(row);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }, { id: 2, finished: false }],
       elements: [], teams: [],
     });
 
-    const result = await backfillActuals(TEST_USER_ID);
+    const result = await backfillActuals(TEST_USER_ID, 2);
 
-    expect(result[0].predictions[0].actualPoints).toBeUndefined();
-    expect(result[0].totalActualPoints).toBeUndefined();
+    expect(result.totalActualPoints).toBeUndefined();
     expect(mockGetPlayer).not.toHaveBeenCalled();
   });
 
-  it('should skip gameweeks that already have actuals', async () => {
-    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5, actualPoints: 12 }], 1, 24)];
-    setupSelectMock(rows);
+  it('should return the row unmodified when actuals already present', async () => {
+    const row = makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5, actualPoints: 12 }], 1, 24);
+    setupSingleRowMock(row);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }],
       elements: [], teams: [],
     });
 
-    await backfillActuals(TEST_USER_ID);
+    const result = await backfillActuals(TEST_USER_ID, 1);
 
     expect(mockGetPlayer).not.toHaveBeenCalled();
+    expect(result.totalActualPoints).toBe(24);
   });
 
-  it('should handle API errors gracefully', async () => {
-    const rows = [makeRow(1, [
+  it('should handle individual player API errors gracefully and continue', async () => {
+    const row = makeRow(1, [
       { playerId: 1, playerName: 'Salah', expectedPoints: 8.5 },
       { playerId: 2, playerName: 'Haaland', expectedPoints: 9.2 },
-    ], 1)];
-    setupSelectMock(rows);
+    ], 1);
+    setupSingleRowMock(row);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: true }],
@@ -254,104 +320,33 @@ describe('backfillActuals', () => {
       .mockResolvedValueOnce({ history: [{ round: 1, total_points: 12 }] })
       .mockRejectedValueOnce(new Error('API rate limit'));
 
-    const result = await backfillActuals(TEST_USER_ID);
+    const result = await backfillActuals(TEST_USER_ID, 1);
 
-    expect(result[0].predictions[0].actualPoints).toBe(12);
-    expect(result[0].predictions[1].actualPoints).toBeUndefined();
+    expect(result.predictions[0].actualPoints).toBe(12);
+    expect(result.predictions[1].actualPoints).toBeUndefined();
     // Only Salah (captain, doubled): 12 * 2 = 24
-    expect(result[0].totalActualPoints).toBe(24);
+    expect(result.totalActualPoints).toBe(24);
   });
 
-  it('should handle multiple gameweeks', async () => {
-    const rows = [
-      makeRow(2, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1),
-      makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1),
-    ];
-    setupSelectMock(rows);
+  it('should throw when no prediction row exists for the gameweek', async () => {
+    setupSingleRowMock(null);
 
-    mockGetBootstrapData.mockResolvedValue({
-      events: [{ id: 1, finished: true }, { id: 2, finished: true }],
-      elements: [], teams: [],
-    });
-    mockGetPlayer.mockResolvedValue({
-      history: [
-        { round: 1, total_points: 10 },
-        { round: 2, total_points: 15 },
-      ],
-    });
-
-    const result = await backfillActuals(TEST_USER_ID);
-
-    expect(result).toHaveLength(2);
-    // GW2 (index 0 in result — rows returned newest first): 15 * 2 = 30
-    expect(result[0].gameweek).toBe(2);
-    expect(result[0].totalActualPoints).toBe(30);
-    // GW1 (index 1): 10 * 2 = 20
-    expect(result[1].gameweek).toBe(1);
-    expect(result[1].totalActualPoints).toBe(20);
+    await expect(backfillActuals(TEST_USER_ID, 99)).rejects.toThrow(
+      'No prediction found for gameweek 99'
+    );
   });
 
-  it('should include fplExpectedPoints in returned records when stored', async () => {
-    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null, 17.3)];
-    setupSelectMock(rows);
+  it('should include fplExpectedPoints in returned record when stored', async () => {
+    const row = makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null, 17.3);
+    setupSingleRowMock(row);
 
     mockGetBootstrapData.mockResolvedValue({
       events: [{ id: 1, finished: false }],
       elements: [], teams: [],
     });
 
-    const result = await backfillActuals(TEST_USER_ID);
+    const result = await backfillActuals(TEST_USER_ID, 1);
 
-    expect(result[0].fplExpectedPoints).toBeCloseTo(17.3);
-  });
-
-  it('should omit fplExpectedPoints when column is null (old rows)', async () => {
-    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1, null, null)];
-    setupSelectMock(rows);
-
-    mockGetBootstrapData.mockResolvedValue({
-      events: [{ id: 1, finished: false }],
-      elements: [], teams: [],
-    });
-
-    const result = await backfillActuals(TEST_USER_ID);
-
-    expect(result[0].fplExpectedPoints).toBeUndefined();
-  });
-
-  it('should return empty array when user has no predictions', async () => {
-    setupSelectMock([]);
-
-    mockGetBootstrapData.mockResolvedValue({ events: [], elements: [], teams: [] });
-
-    const result = await backfillActuals(TEST_USER_ID);
-    expect(result).toHaveLength(0);
-  });
-});
-
-describe('getPredictions', () => {
-  beforeEach(() => {
-    mockFrom.mockReturnValue({ upsert: mockUpsert, select: mockSelect, update: mockUpdate });
-    setupWriteMocks();
-    resetFplInstance();
-  });
-
-  afterEach(() => vi.clearAllMocks());
-
-  it('should return predictions with actuals backfilled', async () => {
-    const rows = [makeRow(1, [{ playerId: 1, playerName: 'Salah', expectedPoints: 8.5 }], 1)];
-    setupSelectMock(rows);
-
-    mockGetBootstrapData.mockResolvedValue({
-      events: [{ id: 1, finished: true }],
-      elements: [], teams: [],
-    });
-    mockGetPlayer.mockResolvedValue({ history: [{ round: 1, total_points: 12 }] });
-
-    const result = await getPredictions(TEST_USER_ID);
-
-    expect(mockGetBootstrapData).toHaveBeenCalled();
-    expect(mockGetPlayer).toHaveBeenCalled();
-    expect(result[0].totalActualPoints).toBe(24); // 12 * 2
+    expect(result.fplExpectedPoints).toBeCloseTo(17.3);
   });
 });

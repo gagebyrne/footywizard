@@ -5,6 +5,7 @@ import { calculateAggregateMetrics } from '@/lib/history/metrics';
 import { createClient } from '@/lib/supabase/server';
 import { AppNav } from '@/components/app-nav';
 import { HistoryChart } from '@/components/history-chart';
+import { HistoryTable } from '@/components/history-table';
 import { WizardBall } from '@/components/wizard-ball';
 
 export const dynamic = 'force-dynamic';
@@ -39,11 +40,6 @@ async function fetchHistory(userId: string): Promise<HistoryResponse | null> {
 
 function formatMetric(value: number | null, digits = 1): string {
   return value !== null ? value.toFixed(digits) : '—';
-}
-
-function calculateError(record: PredictionRecord): number | null {
-  if (record.totalActualPoints === undefined) return null;
-  return Math.abs(record.totalExpectedPoints - record.totalActualPoints);
 }
 
 export default async function HistoryPage() {
@@ -119,8 +115,6 @@ export default async function HistoryPage() {
     );
   }
 
-  const sorted = [...predictions].sort((a, b) => b.gameweek - a.gameweek);
-
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
       <AppNav />
@@ -189,138 +183,7 @@ export default async function HistoryPage() {
           <HistoryChart predictions={predictions} />
 
           {/* Table */}
-          <div style={{ background: 'var(--paper-hi)', border: '2px solid var(--ink)' }}>
-            <div
-              className="px-5 py-3 flex items-center justify-between"
-              style={{ borderBottom: '1px solid var(--ink)' }}
-            >
-              <p className="font-serif italic text-xs" style={{ color: 'var(--ink-mute)' }}>
-                from the archives
-              </p>
-              <h2 className="font-serif font-extrabold text-[22px] tracking-[-0.02em]">
-                Gameweek ledger
-              </h2>
-              <p
-                className="font-mono text-[10px] uppercase tracking-[0.14em] hidden sm:block"
-                style={{ color: 'var(--ink-mute)' }}
-              >
-                {metrics.gameweeksWithActuals}/{metrics.totalGameweeks} settled
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full" style={{ borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--ink)' }}>
-                    {['GW', 'Formation', 'Predicted', 'FPL xP', 'Actual', 'Error', 'Verdict'].map(
-                      (h, i) => (
-                        <th
-                          key={h}
-                          className="font-mono text-[10px] uppercase tracking-[0.14em] font-semibold"
-                          style={{
-                            color: 'var(--ink-mute)',
-                            textAlign: i >= 2 && i <= 5 ? 'right' : 'left',
-                            padding: '10px 16px',
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ),
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((record, i) => {
-                    const err = calculateError(record);
-                    const has = record.totalActualPoints !== undefined;
-                    const verdict = verdictFor(err);
-                    return (
-                      <tr
-                        key={record.gameweek}
-                        style={{
-                          borderBottom:
-                            i === sorted.length - 1
-                              ? 'none'
-                              : '1px solid var(--paper-lo)',
-                        }}
-                      >
-                        <td
-                          className="font-serif font-extrabold text-lg"
-                          style={{
-                            color: 'var(--ink)',
-                            padding: '12px 16px',
-                            letterSpacing: '-0.01em',
-                          }}
-                        >
-                          GW{record.gameweek}
-                        </td>
-                        <td
-                          className="font-mono text-xs"
-                          style={{ color: 'var(--ink-soft)', padding: '12px 16px' }}
-                        >
-                          {record.formation || '—'}
-                        </td>
-                        <td
-                          className="font-serif font-extrabold text-base"
-                          style={{
-                            color: 'var(--ink)',
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                          }}
-                        >
-                          {record.totalExpectedPoints.toFixed(1)}
-                        </td>
-                        <td
-                          className="font-serif text-base"
-                          style={{
-                            color: record.fplExpectedPoints != null ? 'var(--ink-soft)' : 'var(--ink-mute)',
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                          }}
-                        >
-                          {record.fplExpectedPoints != null ? record.fplExpectedPoints.toFixed(1) : '—'}
-                        </td>
-                        <td
-                          className="font-serif font-extrabold text-base"
-                          style={{
-                            color: has ? 'var(--grass)' : 'var(--ink-mute)',
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                          }}
-                        >
-                          {has ? record.totalActualPoints!.toFixed(1) : '—'}
-                        </td>
-                        <td
-                          className="font-mono text-sm"
-                          style={{
-                            color: 'var(--ink)',
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                          }}
-                        >
-                          {err !== null ? err.toFixed(1) : '—'}
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          {verdict && (
-                            <span
-                              className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 inline-block"
-                              style={{
-                                background: verdict.fill,
-                                color: verdict.ink,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {verdict.label}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <HistoryTable initialPredictions={predictions} />
 
           <p
             className="font-serif italic text-sm text-center"
@@ -375,9 +238,3 @@ function BigStat({
   );
 }
 
-function verdictFor(err: number | null): { label: string; fill: string; ink: string } | null {
-  if (err === null) return null;
-  if (err <= 5) return { label: 'On the money', fill: 'var(--grass)', ink: 'var(--captain-ink)' };
-  if (err <= 10) return { label: 'Close enough', fill: '#C9A227', ink: '#16140F' };
-  return { label: 'Talked rubbish', fill: 'var(--red-rule)', ink: 'var(--captain-ink)' };
-}
