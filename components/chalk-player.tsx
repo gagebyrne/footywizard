@@ -41,6 +41,12 @@ function nextThreeFixtures(player: Player, fixtures: Fixture[], teams: Team[]): 
     });
 }
 
+export function statusIndicator(status: string): { color: string } | null {
+  if (status === 'a') return null;
+  if (status === 'd') return { color: '#C9A227' };
+  return { color: 'var(--red-rule)' };
+}
+
 export function diffStyle(d: number): { fill: string; ink: string } {
   if (d <= 2) return { fill: 'var(--grass)', ink: 'var(--captain-ink)' };
   if (d === 3) return { fill: '#C9A227', ink: '#16140F' };
@@ -60,9 +66,7 @@ export function ChalkPlayer({
   const open = hovered || touched;
 
   const fx = nextThreeFixtures(player, fixtures, teams);
-  const status = player.status;
-  const showStatusDot = status === 'd' || status === 'i' || status === 'u';
-  const dotColor = status === 'i' || status === 'u' ? 'var(--red-rule)' : '#C9A227';
+  const statusDot = statusIndicator(player.status);
 
   const teamShort = teams.find((t) => t.id === player.team)?.short_name ?? null;
   const tc = teamColor(teamShort);
@@ -113,7 +117,7 @@ export function ChalkPlayer({
         }}
       >
         <PlayerPortrait player={player} size={52} background={portraitBg} />
-        {showStatusDot && (
+        {statusDot && (
           <div
             className="absolute"
             style={{
@@ -122,7 +126,7 @@ export function ChalkPlayer({
               width: 14,
               height: 14,
               borderRadius: '50%',
-              background: dotColor,
+              background: statusDot.color,
               border: '2px solid var(--paper)',
             }}
           />
